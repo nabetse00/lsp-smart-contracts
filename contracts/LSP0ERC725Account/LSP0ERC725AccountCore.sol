@@ -12,12 +12,13 @@ import "@erc725/smart-contracts/contracts/ERC725YCore.sol";
 import "@erc725/smart-contracts/contracts/ERC725XCore.sol";
 
 // libraries
-import "../Utils/ERC725Utils.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import "@openzeppelin/contracts/utils/introspection/ERC165Checker.sol";
+import "../Utils/ERC725Utils.sol";
 
 // constants
-import "../LSP1UniversalReceiver/LSP1Constants.sol";
 import "../LSP0ERC725Account/LSP0Constants.sol";
+import "../LSP1UniversalReceiver/LSP1Constants.sol";
 
 /**
  * @title Core Implementation of ERC725Account
@@ -67,38 +68,43 @@ abstract contract LSP0ERC725AccountCore is
         returns (bytes4 magicValue)
     {
         // prettier-ignore
+        address _owner = owner();
         // if OWNER is a contract
-        if (owner().code.length != 0) {
-            return 
-                supportsInterface(_INTERFACEID_ERC1271)
-                    ? IERC1271(owner()).isValidSignature(_hash, _signature)
+        if (_owner.code.length != 0) {
+            return
+                ERC165Checker.supportsInterface(_owner, _INTERFACEID_ERC1271)
+                    ? IERC1271(_owner).isValidSignature(_hash, _signature)
                     : _ERC1271_FAILVALUE;
-        // if OWNER is a key
+            // if OWNER is a key
         } else {
-            return 
-                owner() == ECDSA.recover(_hash, _signature)
+            return
+                _owner == ECDSA.recover(_hash, _signature)
                     ? _INTERFACEID_ERC1271
                     : _ERC1271_FAILVALUE;
         }
     }
 
+    /**
+     * @notice Triggers the UniversalReceiver event when this function gets executed successfully.
+     * @dev Forwards the call to the UniversalReceiverDelegate if set.
+     * @param _typeId The type of call received.
+     * @param _data The data received.
+     */
     function universalReceiver(bytes32 _typeId, bytes calldata _data)
         external
         virtual
         override
         returns (bytes memory returnValue)
     {
-        bytes memory receiverData = IERC725Y(this).getDataSingle(
+        bytes memory data = IERC725Y(this).getDataSingle(
             _LSP1_UNIVERSAL_RECEIVER_DELEGATE_KEY
         );
-        returnValue = "";
 
-        // call external contract
-        if (receiverData.length == 20) {
-            address universalReceiverAddress = address(bytes20(receiverData));
-
+        if (data.length >= 20) {
+            address universalReceiverAddress = BytesLib.toAddress(data, 0);
             if (
-                ERC165(universalReceiverAddress).supportsInterface(
+                ERC165Checker.supportsInterface(
+                    universalReceiverAddress,
                     _INTERFACEID_LSP1_DELEGATE
                 )
             ) {
@@ -107,9 +113,6 @@ abstract contract LSP0ERC725AccountCore is
                 ).universalReceiverDelegate(_msgSender(), _typeId, _data);
             }
         }
-
         emit UniversalReceiver(_msgSender(), _typeId, returnValue, _data);
-
-        return returnValue;
     }
 }

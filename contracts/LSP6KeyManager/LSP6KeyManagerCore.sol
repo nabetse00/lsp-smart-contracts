@@ -24,6 +24,13 @@ import "../LSP0ERC725Account/LSP0Constants.sol";
 import "@erc725/smart-contracts/contracts/constants.sol";
 
 /**
+ * @dev revert when address `from` does not have any permissions set
+ * on the account linked to this Key Manager
+ * @param from the address that does not have permissions
+ */
+error NoPermissionsSet(address from);
+
+/**
  * @dev address `from` is not authorised to `permission`
  * @param permission permission required
  * @param from address not-authorised
@@ -248,6 +255,7 @@ abstract contract LSP6KeyManagerCore is ILSP6KeyManager, ERC165 {
             }
         } else if (erc725Function == account.transferOwnership.selector) {
             bytes32 permissions = account.getPermissionsFor(_from);
+            if (permissions == bytes32(0)) revert NoPermissionsSet(_from);
 
             if (!_hasPermission(_PERMISSION_CHANGEOWNER, permissions))
                 revert NotAuthorised(_from, "TRANSFEROWNERSHIP");
@@ -268,6 +276,7 @@ abstract contract LSP6KeyManagerCore is ILSP6KeyManager, ERC165 {
         view
     {
         bytes32 permissions = account.getPermissionsFor(_from);
+        if (permissions == bytes32(0)) revert NoPermissionsSet(_from);
 
         (bytes32[] memory inputKeys, ) = abi.decode(
             _data[4:],
@@ -403,6 +412,7 @@ abstract contract LSP6KeyManagerCore is ILSP6KeyManager, ERC165 {
         view
     {
         bytes32 permissions = account.getPermissionsFor(_from);
+        if (permissions == bytes32(0)) revert NoPermissionsSet(_from);
 
         uint256 operationType = uint256(bytes32(_data[4:36]));
         uint256 value = uint256(bytes32(_data[68:100]));
@@ -558,6 +568,6 @@ abstract contract LSP6KeyManagerCore is ILSP6KeyManager, ERC165 {
         if (_operationType == 0) return (_PERMISSION_CALL, "CALL");
         if (_operationType == 1) return (_PERMISSION_DEPLOY, "CREATE");
         if (_operationType == 2) return (_PERMISSION_DEPLOY, "CREATE2");
-        if (_operationType == 3) return (_PERMISSION_DEPLOY, "STATICCALL");
+        if (_operationType == 3) return (_PERMISSION_STATICCALL, "STATICCALL");
     }
 }

@@ -1,5 +1,8 @@
 import { ethers } from "hardhat";
 
+export const abiCoder = ethers.utils.defaultAbiCoder;
+export const provider = ethers.provider;
+
 export const EMPTY_PAYLOAD = "0x";
 export const DUMMY_PAYLOAD = "0xaabbccdd123456780000000000";
 export const ONE_ETH = ethers.utils.parseEther("1");
@@ -133,6 +136,10 @@ export function getRandomString() {
 
 const customRevertErrorMessage =
   "VM Exception while processing transaction: reverted with custom error";
+
+export const NoPermissionsSetError = (_from) => {
+  return `${customRevertErrorMessage} 'NoPermissionsSet("${_from}")'`;
+};
 
 export const NotAuthorisedError = (_from, _permission) => {
   return `${customRevertErrorMessage} 'NotAuthorised("${_from}", "${_permission}")'`;
