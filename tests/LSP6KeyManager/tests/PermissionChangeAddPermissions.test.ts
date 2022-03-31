@@ -13,7 +13,7 @@ import { LSP6TestContext } from "../../utils/context";
 import { setupKeyManager } from "../../utils/fixtures";
 
 // helpers
-import { NotAuthorisedError } from "../../utils/helpers";
+import { abiCoder, NotAuthorisedError } from "../../utils/helpers";
 
 export const shouldBehaveLikePermissionChangeOrAddPermissions = (
   buildContext: () => Promise<LSP6TestContext>
@@ -61,7 +61,10 @@ export const shouldBehaveLikePermissionChangeOrAddPermissions = (
         ethers.utils.hexZeroPad(PERMISSIONS.CHANGEPERMISSIONS, 32),
         ethers.utils.hexZeroPad(PERMISSIONS.SETDATA, 32),
         // placeholder permission
-        ethers.utils.hexZeroPad(PERMISSIONS.TRANSFERVALUE, 32),
+        ethers.utils.hexZeroPad(
+          PERMISSIONS.CALL + PERMISSIONS.TRANSFERVALUE,
+          32
+        ),
         // 0x0000... = similar to empty, or 'no permissions set'
         "0x0000000000000000000000000000000000000000000000000000000000000000",
       ];
@@ -98,7 +101,7 @@ export const shouldBehaveLikePermissionChangeOrAddPermissions = (
       await setupKeyManager(context, permissionKeys, permissionValues);
     });
 
-    describe("when setting one permission key", () => {
+    describe.only("when setting one permission key", () => {
       describe("when caller is an address with ALL PERMISSIONS", () => {
         it("should be allowed to ADD permissions", async () => {
           let newController = new ethers.Wallet.createRandom();
@@ -576,11 +579,193 @@ export const shouldBehaveLikePermissionChangeOrAddPermissions = (
           }
         });
       });
+    });
+  });
 
-      /**
-       *  @todo should test that an address with only the permisssion SETDATA
-       * cannot add or edit permissions
-       */
+  describe.only("setting Allowed Addresses keys (CHANGE vs ADD Permissions)", () => {
+    let canOnlyAddPermissions: SignerWithAddress,
+      canOnlyChangePermissions: SignerWithAddress;
+
+    let addressWithPermissionsAndAllowedAddresses: SignerWithAddress,
+      addressWithPermissionsAndNoAllowedAddresses: SignerWithAddress;
+
+    beforeEach(async () => {
+      context = await buildContext();
+
+      canOnlyAddPermissions = context.accounts[1];
+      canOnlyChangePermissions = context.accounts[2];
+
+      addressWithPermissionsAndAllowedAddresses = context.accounts[3];
+      addressWithPermissionsAndNoAllowedAddresses = context.accounts[4];
+
+      const permissionKeys = [
+        ERC725YKeys.LSP6["AddressPermissions:Permissions"] +
+          canOnlyAddPermissions.address.substring(2),
+        ERC725YKeys.LSP6["AddressPermissions:Permissions"] +
+          canOnlyChangePermissions.address.substring(2),
+        ERC725YKeys.LSP6["AddressPermissions:Permissions"] +
+          addressWithPermissionsAndAllowedAddresses.address.substring(2),
+        ERC725YKeys.LSP6["AddressPermissions:Permissions"] +
+          addressWithPermissionsAndNoAllowedAddresses.address.substring(2),
+        ERC725YKeys.LSP6["AddressPermissions:AllowedAddresses"] +
+          addressWithPermissionsAndAllowedAddresses.address.substring(2),
+      ];
+
+      const permissionValues = [
+        ethers.utils.hexZeroPad(PERMISSIONS.ADDPERMISSIONS, 32),
+        ethers.utils.hexZeroPad(PERMISSIONS.CHANGEPERMISSIONS, 32),
+        // placeholder permissions
+        ethers.utils.hexZeroPad(
+          PERMISSIONS.CALL + PERMISSIONS.TRANSFERVALUE,
+          32
+        ),
+        ethers.utils.hexZeroPad(
+          PERMISSIONS.CALL + PERMISSIONS.TRANSFERVALUE,
+          32
+        ),
+        abiCoder.encode(
+          ["address[]"],
+          [["0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"]]
+        ),
+      ];
+
+      await setupKeyManager(context, permissionKeys, permissionValues);
+    });
+
+    describe("when caller can only ADD permissions", () => {
+      describe("when beneficiary address has some permissions + already some allowed addresses", () => {
+        it("(fail) should not be allowed add an allowed address", async () => {
+          let key =
+            ERC725YKeys.LSP6["AddressPermissions:AllowedAddresses"] +
+            addressWithPermissionsAndAllowedAddresses.address.substring(2);
+
+          let value = abiCoder.encode(
+            ["address[]"],
+            [
+              [
+                "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              ],
+            ]
+          );
+
+          let payload = context.universalProfile.interface.encodeFunctionData(
+            "setData",
+            [[key], [value]]
+          );
+
+          try {
+            await context.keyManager
+              .connect(canOnlyAddPermissions)
+              .execute(payload);
+          } catch (error) {
+            expect(error.message).toMatch(
+              NotAuthorisedError(
+                canOnlyAddPermissions.address,
+                "CHANGEPERMISSIONS"
+              )
+            );
+          }
+        });
+      });
+
+      describe("when beneficiary address has some permissions, but NO allowed addresses", () => {
+        it("(pass) should be allowed to set some allowed addresses for the first time", async () => {
+          let key =
+            ERC725YKeys.LSP6["AddressPermissions:AllowedAddresses"] +
+            addressWithPermissionsAndNoAllowedAddresses.address.substring(2);
+
+          let value = abiCoder.encode(
+            ["address[]"],
+            [
+              [
+                "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              ],
+            ]
+          );
+
+          let payload = context.universalProfile.interface.encodeFunctionData(
+            "setData",
+            [[key], [value]]
+          );
+
+          await context.keyManager
+            .connect(canOnlyAddPermissions)
+            .execute(payload);
+
+          const [result] = await context.universalProfile.getData([key]);
+          expect(result).toEqual(value);
+        });
+      });
+    });
+
+    describe("when caller can only CHANGE permissions", () => {
+      describe("when beneficiary address has some permissions + already some allowed addresses", () => {
+        it("(pass) should be allowed to add an allowed address", async () => {
+          let key =
+            ERC725YKeys.LSP6["AddressPermissions:AllowedAddresses"] +
+            addressWithPermissionsAndAllowedAddresses.address.substring(2);
+
+          let value = abiCoder.encode(
+            ["address[]"],
+            [
+              [
+                "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              ],
+            ]
+          );
+
+          let payload = context.universalProfile.interface.encodeFunctionData(
+            "setData",
+            [[key], [value]]
+          );
+
+          await context.keyManager
+            .connect(canOnlyChangePermissions)
+            .execute(payload);
+
+          const [result] = await context.universalProfile.getData([key]);
+          expect(result).toEqual(value);
+        });
+      });
+
+      describe("when beneficiary address has some permissions, but NO allowed addresses", () => {
+        it("(fail) should not be allowed to set some allowed addresses for the first time", async () => {
+          let key =
+            ERC725YKeys.LSP6["AddressPermissions:AllowedAddresses"] +
+            addressWithPermissionsAndNoAllowedAddresses.address.substring(2);
+
+          let value = abiCoder.encode(
+            ["address[]"],
+            [
+              [
+                "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              ],
+            ]
+          );
+
+          let payload = context.universalProfile.interface.encodeFunctionData(
+            "setData",
+            [[key], [value]]
+          );
+
+          try {
+            await context.keyManager
+              .connect(canOnlyChangePermissions)
+              .execute(payload);
+          } catch (error) {
+            expect(error.message).toMatch(
+              NotAuthorisedError(
+                canOnlyChangePermissions.address,
+                "ADDPERMISSIONS"
+              )
+            );
+          }
+        });
+      });
     });
   });
 
