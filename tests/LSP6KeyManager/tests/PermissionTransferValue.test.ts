@@ -312,7 +312,7 @@ export const shouldBehaveLikePermissionTransferValue = (
     });
   });
 
-  describe.only("when caller is another UP (with a KeyManager as owner)", () => {
+  describe("when caller is another UP (with a KeyManager as owner)", () => {
     // UP making the call
     let alice: SignerWithAddress;
     let aliceContext: LSP6TestContext;

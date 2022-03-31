@@ -567,7 +567,7 @@ export const shouldBehaveLikePermissionSetData = (
     });
   });
 
-  describe.only("when caller is another UniversalProfile (with a KeyManager attached as owner)", () => {
+  describe("when caller is another UniversalProfile (with a KeyManager attached as owner)", () => {
     // UP making the call
     let alice: SignerWithAddress;
     let aliceContext: LSP6TestContext;
