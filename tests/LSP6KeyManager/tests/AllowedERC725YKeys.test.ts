@@ -1642,4 +1642,73 @@ export const shouldBehaveLikeAllowedERC725YKeys = (
       });
     });
   });
+
+  describe.only("edge cases", () => {
+    let controllerCanSetOneKey: SignerWithAddress;
+
+    const allowedKey = ethers.utils.keccak256(
+      ethers.utils.toUtf8Bytes("Allowed Key")
+    );
+
+    beforeAll(async () => {
+      context = await buildContext();
+
+      controllerCanSetOneKey = context.accounts[1];
+
+      const permissionKeys = [
+        ERC725YKeys.LSP6["AddressPermissions:Permissions"] +
+          context.owner.address.substring(2),
+        ERC725YKeys.LSP6["AddressPermissions:Permissions"] +
+          controllerCanSetOneKey.address.substring(2),
+        ERC725YKeys.LSP6["AddressPermissions:AllowedERC725YKeys"] +
+          controllerCanSetOneKey.address.substring(2),
+      ];
+
+      const allowedERC725YKeyValue = "0xbadbadbadbad";
+
+      const permissionValues = [
+        ALL_PERMISSIONS_SET,
+        ethers.utils.hexZeroPad(PERMISSIONS.SETDATA, 32),
+        // abiCoder.encode(["bytes32[]"], [[allowedKey]]),
+        allowedERC725YKeyValue,
+      ];
+
+      await setupKeyManager(context, permissionKeys, permissionValues);
+    });
+
+    it("caller can set the allowed key?", async () => {
+      let key = allowedKey;
+      let value = ethers.utils.hexlify(ethers.utils.toUtf8Bytes("Some Value"));
+
+      let setDataPayload =
+        context.universalProfile.interface.encodeFunctionData("setData", [
+          [key],
+          [value],
+        ]);
+      await context.keyManager
+        .connect(controllerCanSetOneKey)
+        .execute(setDataPayload);
+
+      let [result] = await context.universalProfile.getData([key]);
+      expect(result).toEqual(value);
+    });
+
+    it("can set any other key?", async () => {
+      let key =
+        "0xcafecafecafecafecafecafecafecafecafecafecafecafecafecafecafecafe";
+      let value = "0xcafecafe";
+
+      let setDataPayload =
+        context.universalProfile.interface.encodeFunctionData("setData", [
+          [key],
+          [value],
+        ]);
+      await context.keyManager
+        .connect(controllerCanSetOneKey)
+        .execute(setDataPayload);
+
+      let [result] = await context.universalProfile.getData([key]);
+      expect(result).toEqual(value);
+    });
+  });
 };
