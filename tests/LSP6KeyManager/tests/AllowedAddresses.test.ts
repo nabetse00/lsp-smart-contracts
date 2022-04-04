@@ -41,7 +41,6 @@ export const shouldBehaveLikeAllowedAddresses = (
     context = await buildContext();
 
     canCallOnlyTwoAddresses = context.accounts[1];
-    hasSomeRandomBytesSet = context.accounts[2];
 
     allowedEOA = context.accounts[3];
     notAllowedEOA = context.accounts[4];
@@ -61,10 +60,6 @@ export const shouldBehaveLikeAllowedAddresses = (
         canCallOnlyTwoAddresses.address.substring(2),
       ERC725YKeys.LSP6["AddressPermissions:AllowedAddresses"] +
         canCallOnlyTwoAddresses.address.substring(2),
-      ERC725YKeys.LSP6["AddressPermissions:Permissions"] +
-        hasSomeRandomBytesSet.address.substring(2),
-      ERC725YKeys.LSP6["AddressPermissions:AllowedAddresses"] +
-        hasSomeRandomBytesSet.address.substring(2),
     ];
 
     let permissionsValues = [
@@ -75,7 +70,6 @@ export const shouldBehaveLikeAllowedAddresses = (
         [[allowedEOA.address, allowedTargetContract.address]]
       ),
       ethers.utils.hexZeroPad(PERMISSIONS.CALL + PERMISSIONS.TRANSFERVALUE, 32),
-      "0x00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000000",
     ];
 
     await setupKeyManager(context, permissionsKeys, permissionsValues);
@@ -257,41 +251,6 @@ export const shouldBehaveLikeAllowedAddresses = (
           )
         );
       }
-    });
-  });
-
-  describe("when caller has 1 x packed encoded allowed address set", () => {
-    it("what happen when trying to send some LYX to the allowed EOA?", async () => {
-      let recipient = allowedEOA.address;
-
-      let initialBalanceUP = await provider.getBalance(
-        context.universalProfile.address
-      );
-      let initialBalanceEOA = await provider.getBalance(recipient);
-
-      let amount = ethers.utils.parseEther("1");
-
-      let transferPayload =
-        context.universalProfile.interface.encodeFunctionData("execute", [
-          OPERATIONS.CALL,
-          recipient,
-          amount,
-          EMPTY_PAYLOAD,
-        ]);
-
-      await context.keyManager
-        .connect(hasSomeRandomBytesSet)
-        .execute(transferPayload);
-
-      //   let newBalanceUP = await provider.getBalance(
-      //     context.universalProfile.address
-      //   );
-      //   expect(parseInt(newBalanceUP)).toBeLessThan(parseInt(initialBalanceUP));
-
-      //   let newBalanceEOA = await provider.getBalance(recipient);
-      //   expect(parseInt(newBalanceEOA)).toBeGreaterThan(
-      //     parseInt(initialBalanceEOA)
-      //   );
     });
   });
 };
