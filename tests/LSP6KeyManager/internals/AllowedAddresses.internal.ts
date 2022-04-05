@@ -71,9 +71,10 @@ export const testAllowedAddressesInternals = (
 
     describe("`getAllowedAddressesFor(...)`", () => {
       it("should return the same list of allowed addresses", async () => {
-        let bytesResult = await context.keyManagerHelper.getAllowedAddressesFor(
-          canCallOnlyTwoAddresses.address
-        );
+        let bytesResult =
+          await context.keyManagerInternalTester.getAllowedAddressesFor(
+            canCallOnlyTwoAddresses.address
+          );
 
         let decodedResult = abiCoder.decode(["address[]"], bytesResult);
 
@@ -86,9 +87,10 @@ export const testAllowedAddressesInternals = (
       });
 
       it("should return no bytes when no allowed addresses are set", async () => {
-        let bytesResult = await context.keyManagerHelper.getAllowedAddressesFor(
-          context.owner.address
-        );
+        let bytesResult =
+          await context.keyManagerInternalTester.getAllowedAddressesFor(
+            context.owner.address
+          );
         expect([bytesResult]).toEqual(["0x"]);
 
         let resultFromAccount = await context.universalProfile.getData([
@@ -101,11 +103,11 @@ export const testAllowedAddressesInternals = (
 
     describe("`verifyAllowedAddressesFor(...)`", () => {
       it("should not revert for an address listed in allowed addresses list", async () => {
-        await context.keyManagerHelper.verifyAllowedAddress(
+        await context.keyManagerInternalTester.verifyAllowedAddress(
           canCallOnlyTwoAddresses.address,
           allowedEOA.address
         );
-        await context.keyManagerHelper.verifyAllowedAddress(
+        await context.keyManagerInternalTester.verifyAllowedAddress(
           canCallOnlyTwoAddresses.address,
           allowedTargetContract.address
         );
@@ -117,7 +119,7 @@ export const testAllowedAddressesInternals = (
         );
 
         try {
-          await context.keyManagerHelper.verifyAllowedAddress(
+          await context.keyManagerInternalTester.verifyAllowedAddress(
             canCallOnlyTwoAddresses.address,
             disallowedAddress
           );
@@ -134,7 +136,7 @@ export const testAllowedAddressesInternals = (
       it("should not revert when user has no address listed (= all addresses whitelisted)", async () => {
         let randomAddress = ethers.Wallet.createRandom().address.toLowerCase();
 
-        await context.keyManagerHelper.verifyAllowedAddress(
+        await context.keyManagerInternalTester.verifyAllowedAddress(
           context.owner.address,
           randomAddress
         );
@@ -214,7 +216,7 @@ export const testAllowedAddressesInternals = (
 
     describe("_verifyAllowedAddressesFor(...)", () => {
       it("should pass when no value is stored under the key", async () => {
-        await context.keyManagerHelper.verifyAllowedAddress(
+        await context.keyManagerInternalTester.verifyAllowedAddress(
           controllers.noBytes.address,
           randomAddress
         );
@@ -222,7 +224,7 @@ export const testAllowedAddressesInternals = (
 
       it("should revert when 1 x 0 byte is stored under the key", async () => {
         await expect(
-          context.keyManagerHelper.verifyAllowedAddress(
+          context.keyManagerInternalTester.verifyAllowedAddress(
             controllers.oneZeroByte.address,
             randomAddress
           )
@@ -231,7 +233,7 @@ export const testAllowedAddressesInternals = (
 
       it("should revert when 10 x 0 bytes are stored under the key", async () => {
         await expect(
-          context.keyManagerHelper.verifyAllowedAddress(
+          context.keyManagerInternalTester.verifyAllowedAddress(
             controllers.tenZeroBytes.address,
             randomAddress
           )
@@ -240,7 +242,7 @@ export const testAllowedAddressesInternals = (
 
       it("should revert when 20 x 0 bytes are stored under the key", async () => {
         await expect(
-          context.keyManagerHelper.verifyAllowedAddress(
+          context.keyManagerInternalTester.verifyAllowedAddress(
             controllers.twentyZeroBytes.address,
             randomAddress
           )
@@ -249,28 +251,28 @@ export const testAllowedAddressesInternals = (
     });
 
     it("thirtyTwoZeroBytes", async () => {
-      await context.keyManagerHelper.verifyAllowedAddress(
+      await context.keyManagerInternalTester.verifyAllowedAddress(
         controllers.thirtyTwoZeroBytes.address,
         randomAddress
       );
     });
 
     it("fourtyZeroBytes", async () => {
-      await context.keyManagerHelper.verifyAllowedAddress(
+      await context.keyManagerInternalTester.verifyAllowedAddress(
         controllers.fourtyZeroBytes.address,
         randomAddress
       );
     });
 
     it("sixtyFourZeroBytes", async () => {
-      await context.keyManagerHelper.verifyAllowedAddress(
+      await context.keyManagerInternalTester.verifyAllowedAddress(
         controllers.sixtyFourZeroBytes.address,
         randomAddress
       );
     });
 
     it("hundredZeroBytes", async () => {
-      await context.keyManagerHelper.verifyAllowedAddress(
+      await context.keyManagerInternalTester.verifyAllowedAddress(
         controllers.hundredZeroBytes.address,
         randomAddress
       );
@@ -341,7 +343,7 @@ export const testAllowedAddressesInternals = (
     describe("`verifyAllowedAddressesFor(...)`", () => {
       /** @reverts NotAllowedAddress */
       it("what happen for emptyABIEncodedArray?", async () => {
-        await context.keyManagerHelper.verifyAllowedAddress(
+        await context.keyManagerInternalTester.verifyAllowedAddress(
           controllers.emptyABIEncodedArray.address,
           randomAddress
         );
@@ -349,7 +351,7 @@ export const testAllowedAddressesInternals = (
 
       /** @reverts NotAllowedAddress */
       it("what happen for emptyABIEncodedArrayWithMoreZeros?", async () => {
-        await context.keyManagerHelper.verifyAllowedAddress(
+        await context.keyManagerInternalTester.verifyAllowedAddress(
           controllers.emptyABIEncodedArrayWithMoreZeros.address,
           randomAddress
         );
@@ -357,7 +359,7 @@ export const testAllowedAddressesInternals = (
 
       /** @fail Transaction reverted and Hardhat couldn't infer the reason */
       it("what happen for shortBytes?", async () => {
-        await context.keyManagerHelper.verifyAllowedAddress(
+        await context.keyManagerInternalTester.verifyAllowedAddress(
           controllers.shortBytes.address,
           randomAddress
         );
@@ -365,7 +367,7 @@ export const testAllowedAddressesInternals = (
 
       /** @fail Transaction reverted and Hardhat couldn't infer the reason */
       it("what happen for longBytes?", async () => {
-        await context.keyManagerHelper.verifyAllowedAddress(
+        await context.keyManagerInternalTester.verifyAllowedAddress(
           controllers.longBytes.address,
           randomAddress
         );
@@ -373,7 +375,7 @@ export const testAllowedAddressesInternals = (
 
       /** @fail Transaction reverted and Hardhat couldn't infer the reason */
       it.only("what happen for multipleOf32Bytes?", async () => {
-        await context.keyManagerHelper.verifyAllowedAddress(
+        await context.keyManagerInternalTester.verifyAllowedAddress(
           controllers.multipleOf32Bytes.address,
           randomAddress
         );
