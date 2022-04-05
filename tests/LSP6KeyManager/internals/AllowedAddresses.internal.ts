@@ -154,14 +154,14 @@ export const testAllowedAddressesInternals = (
       hundredZeroBytes: SignerWithAddress;
     };
 
-    let controller: ControllersContext;
+    let controllers: ControllersContext;
 
     const randomAddress = ethers.Wallet.createRandom().address.toLowerCase();
 
     beforeAll(async () => {
       context = await buildContext();
 
-      controller = {
+      controllers = {
         noBytes: context.accounts[1],
         oneZeroByte: context.accounts[2],
         tenZeroBytes: context.accounts[3],
@@ -175,12 +175,12 @@ export const testAllowedAddressesInternals = (
       const permissionKeys = [
         ERC725YKeys.LSP6["AddressPermissions:Permissions"] +
           context.owner.address.substring(2),
-        ...Object.values(controller).map(
+        ...Object.values(controllers).map(
           (controller) =>
             ERC725YKeys.LSP6["AddressPermissions:Permissions"] +
             controller.address.substring(2)
         ),
-        ...Object.values(controller).map(
+        ...Object.values(controllers).map(
           (controller) =>
             ERC725YKeys.LSP6["AddressPermissions:AllowedAddresses"] +
             controller.address.substring(2)
@@ -189,14 +189,14 @@ export const testAllowedAddressesInternals = (
 
       let permissionValues = [ALL_PERMISSIONS_SET];
 
-      for (let ii = 0; ii < Object.values(controller).length; ii++) {
+      Object.values(controllers).forEach((controller) => {
         permissionValues.push(
           ethers.utils.hexZeroPad(
-            PERMISSIONS.CALL + PERMISSIONS.TRANSFERVALUE,
+            "0x" + (PERMISSIONS.CALL + PERMISSIONS.TRANSFERVALUE).toString(),
             32
           )
         );
-      }
+      });
 
       permissionValues = permissionValues.concat([
         "0x",
@@ -212,58 +212,66 @@ export const testAllowedAddressesInternals = (
       await setupKeyManagerHelper(context, permissionKeys, permissionValues);
     });
 
-    it("noBytes", async () => {
-      await context.keyManagerHelper.verifyAllowedAddress(
-        controller.noBytes.address,
-        randomAddress
-      );
-    });
+    describe("_verifyAllowedAddressesFor(...)", () => {
+      it("should pass when no value is stored under the key", async () => {
+        await context.keyManagerHelper.verifyAllowedAddress(
+          controllers.noBytes.address,
+          randomAddress
+        );
+      });
 
-    it("oneZeroByte", async () => {
-      await context.keyManagerHelper.verifyAllowedAddress(
-        controller.oneZeroByte.address,
-        randomAddress
-      );
-    });
+      it("should revert when 1 x 0 byte is stored under the key", async () => {
+        await expect(
+          context.keyManagerHelper.verifyAllowedAddress(
+            controllers.oneZeroByte.address,
+            randomAddress
+          )
+        ).toBeReverted();
+      });
 
-    it("tenZeroBytes", async () => {
-      await context.keyManagerHelper.verifyAllowedAddress(
-        controller.tenZeroBytes.address,
-        randomAddress
-      );
-    });
+      it("should revert when 10 x 0 bytes are stored under the key", async () => {
+        await expect(
+          context.keyManagerHelper.verifyAllowedAddress(
+            controllers.tenZeroBytes.address,
+            randomAddress
+          )
+        ).toBeReverted();
+      });
 
-    it("twentyZeroBytes", async () => {
-      await context.keyManagerHelper.verifyAllowedAddress(
-        controller.twentyZeroBytes.address,
-        randomAddress
-      );
+      it("should revert when 20 x 0 bytes are stored under the key", async () => {
+        await expect(
+          context.keyManagerHelper.verifyAllowedAddress(
+            controllers.twentyZeroBytes.address,
+            randomAddress
+          )
+        ).toBeReverted();
+      });
     });
 
     it("thirtyTwoZeroBytes", async () => {
       await context.keyManagerHelper.verifyAllowedAddress(
-        controller.thirtyTwoZeroBytes.address,
+        controllers.thirtyTwoZeroBytes.address,
         randomAddress
       );
     });
 
     it("fourtyZeroBytes", async () => {
       await context.keyManagerHelper.verifyAllowedAddress(
-        controller.fourtyZeroBytes.address,
+        controllers.fourtyZeroBytes.address,
         randomAddress
       );
     });
 
     it("sixtyFourZeroBytes", async () => {
       await context.keyManagerHelper.verifyAllowedAddress(
-        controller.sixtyFourZeroBytes.address,
+        controllers.sixtyFourZeroBytes.address,
         randomAddress
       );
     });
 
     it("hundredZeroBytes", async () => {
       await context.keyManagerHelper.verifyAllowedAddress(
-        controller.hundredZeroBytes.address,
+        controllers.hundredZeroBytes.address,
         randomAddress
       );
     });
@@ -278,14 +286,14 @@ export const testAllowedAddressesInternals = (
       multipleOf32Bytes: SignerWithAddress;
     };
 
-    let controller: ControllersContext;
+    let controllers: ControllersContext;
 
     const randomAddress = ethers.Wallet.createRandom().address.toLowerCase();
 
     beforeAll(async () => {
       context = await buildContext();
 
-      controller = {
+      controllers = {
         emptyABIEncodedArray: context.accounts[1],
         emptyABIEncodedArrayWithMoreZeros: context.accounts[2],
         shortBytes: context.accounts[3],
@@ -296,56 +304,36 @@ export const testAllowedAddressesInternals = (
       const permissionKeys = [
         ERC725YKeys.LSP6["AddressPermissions:Permissions"] +
           context.owner.address.substring(2),
-        ERC725YKeys.LSP6["AddressPermissions:Permissions"] +
-          controller.emptyABIEncodedArray.address.substring(2),
-        ERC725YKeys.LSP6["AddressPermissions:Permissions"] +
-          controller.emptyABIEncodedArrayWithMoreZeros.address.substring(2),
-        ERC725YKeys.LSP6["AddressPermissions:Permissions"] +
-          controller.shortBytes.address.substring(2),
-        ERC725YKeys.LSP6["AddressPermissions:Permissions"] +
-          controller.longBytes.address.substring(2),
-        ERC725YKeys.LSP6["AddressPermissions:Permissions"] +
-          controller.multipleOf32Bytes.address.substring(2),
-        ERC725YKeys.LSP6["AddressPermissions:AllowedAddresses"] +
-          controller.emptyABIEncodedArray.address.substring(2),
-        ERC725YKeys.LSP6["AddressPermissions:AllowedAddresses"] +
-          controller.emptyABIEncodedArrayWithMoreZeros.address.substring(2),
-        ERC725YKeys.LSP6["AddressPermissions:AllowedAddresses"] +
-          controller.shortBytes.address.substring(2),
-        ERC725YKeys.LSP6["AddressPermissions:AllowedAddresses"] +
-          controller.longBytes.address.substring(2),
-        ERC725YKeys.LSP6["AddressPermissions:AllowedAddresses"] +
-          controller.multipleOf32Bytes.address.substring(2),
+        ...Object.values(controllers).map(
+          (controller) =>
+            ERC725YKeys.LSP6["AddressPermissions:Permissions"] +
+            controller.address.substring(2)
+        ),
+        ...Object.values(controllers).map(
+          (controller) =>
+            ERC725YKeys.LSP6["AddressPermissions:AllowedAddresses"] +
+            controller.address.substring(2)
+        ),
       ];
 
-      const permissionValues = [
-        ALL_PERMISSIONS_SET,
-        ethers.utils.hexZeroPad(
-          PERMISSIONS.CALL + PERMISSIONS.TRANSFERVALUE,
-          32
-        ),
-        ethers.utils.hexZeroPad(
-          PERMISSIONS.CALL + PERMISSIONS.TRANSFERVALUE,
-          32
-        ),
-        ethers.utils.hexZeroPad(
-          PERMISSIONS.CALL + PERMISSIONS.TRANSFERVALUE,
-          32
-        ),
-        ethers.utils.hexZeroPad(
-          PERMISSIONS.CALL + PERMISSIONS.TRANSFERVALUE,
-          32
-        ),
-        ethers.utils.hexZeroPad(
-          PERMISSIONS.CALL + PERMISSIONS.TRANSFERVALUE,
-          32
-        ),
+      let permissionValues = [ALL_PERMISSIONS_SET];
+
+      Object.values(controllers).forEach((controller) => {
+        permissionValues.push(
+          ethers.utils.hexZeroPad(
+            "0x" + (PERMISSIONS.CALL + PERMISSIONS.TRANSFERVALUE).toString(),
+            32
+          )
+        );
+      });
+
+      permissionValues = permissionValues.concat([
         "0x00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000000",
         "0x0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
         "0xaabbccdd",
         "0x1234567890abcdef1234567890abcdef",
         "0x00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000001000000000000000000000000a0Ee7A142d267C1f36714E4a8F75612F20a79720",
-      ];
+      ]);
 
       await setupKeyManagerHelper(context, permissionKeys, permissionValues);
     });
@@ -354,7 +342,7 @@ export const testAllowedAddressesInternals = (
       /** @reverts NotAllowedAddress */
       it("what happen for emptyABIEncodedArray?", async () => {
         await context.keyManagerHelper.verifyAllowedAddress(
-          controller.emptyABIEncodedArray.address,
+          controllers.emptyABIEncodedArray.address,
           randomAddress
         );
       });
@@ -362,7 +350,7 @@ export const testAllowedAddressesInternals = (
       /** @reverts NotAllowedAddress */
       it("what happen for emptyABIEncodedArrayWithMoreZeros?", async () => {
         await context.keyManagerHelper.verifyAllowedAddress(
-          controller.emptyABIEncodedArrayWithMoreZeros.address,
+          controllers.emptyABIEncodedArrayWithMoreZeros.address,
           randomAddress
         );
       });
@@ -370,7 +358,7 @@ export const testAllowedAddressesInternals = (
       /** @fail Transaction reverted and Hardhat couldn't infer the reason */
       it("what happen for shortBytes?", async () => {
         await context.keyManagerHelper.verifyAllowedAddress(
-          controller.shortBytes.address,
+          controllers.shortBytes.address,
           randomAddress
         );
       });
@@ -378,7 +366,7 @@ export const testAllowedAddressesInternals = (
       /** @fail Transaction reverted and Hardhat couldn't infer the reason */
       it("what happen for longBytes?", async () => {
         await context.keyManagerHelper.verifyAllowedAddress(
-          controller.longBytes.address,
+          controllers.longBytes.address,
           randomAddress
         );
       });
@@ -386,7 +374,7 @@ export const testAllowedAddressesInternals = (
       /** @fail Transaction reverted and Hardhat couldn't infer the reason */
       it.only("what happen for multipleOf32Bytes?", async () => {
         await context.keyManagerHelper.verifyAllowedAddress(
-          controller.multipleOf32Bytes.address,
+          controllers.multipleOf32Bytes.address,
           randomAddress
         );
       });
