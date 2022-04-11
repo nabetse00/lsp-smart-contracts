@@ -24,7 +24,6 @@ abstract contract LSP8CompatibilityForERC721Core is
     LSP8IdentifiableDigitalAssetCore,
     LSP4Compatibility
 {
-    using ERC725Utils for IERC725Y;
     using EnumerableSet for EnumerableSet.AddressSet;
 
     /*
@@ -40,7 +39,7 @@ abstract contract LSP8CompatibilityForERC721Core is
         // silence compiler warning about unused variable
         tokenId;
 
-        bytes memory data = IERC725Y(this).getDataSingle(_LSP4_METADATA_KEY);
+        bytes memory data = _getData(_LSP4_METADATA_KEY);
 
         // offset = bytes4(hashSig) + bytes32(contentHash) -> 4 + 32 = 36
         uint256 offset = 36;
@@ -137,8 +136,7 @@ abstract contract LSP8CompatibilityForERC721Core is
         address to,
         uint256 tokenId
     ) external virtual override {
-        return
-            transfer(from, to, bytes32(tokenId), true, "");
+        return transfer(from, to, bytes32(tokenId), true, "");
     }
 
     /**
@@ -151,14 +149,7 @@ abstract contract LSP8CompatibilityForERC721Core is
         address to,
         uint256 tokenId
     ) external virtual override {
-        return
-            transfer(
-                from,
-                to,
-                bytes32(tokenId),
-                false,
-                ""
-            );
+        return transfer(from, to, bytes32(tokenId), false, "");
     }
 
     /*

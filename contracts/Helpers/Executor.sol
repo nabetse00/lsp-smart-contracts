@@ -3,6 +3,7 @@ pragma solidity ^0.8.0;
 
 import "../UniversalProfile.sol";
 import "../LSP6KeyManager/LSP6KeyManager.sol";
+import {setDataMultipleSelector} from "../LSP6KeyManager/LSP6Constants.sol";
 
 contract Executor {
     uint256 internal constant _OPERATION_CALL = 0;
@@ -27,13 +28,12 @@ contract Executor {
         bytes32[] memory keys = new bytes32[](1);
         bytes[] memory values = new bytes[](1);
 
-        // keccak256('MyFirstKey')
         // prettier-ignore
-        keys[0] = 0x00b76b597620a89621ab37aedc4220d553ad6145a885461350e5990372b906f5;
-        values[0] = "Hello Lukso";
+        keys[0] = 0x562d53c1631c0c1620e183763f5f6356addcf78f26cbbd0b9eb7061d7c897ea1;
+        values[0] = "Some value";
 
         bytes memory erc725Payload = abi.encodeWithSelector(
-            _universalProfile.setData.selector,
+            setDataMultipleSelector,
             keys,
             values
         );
@@ -45,11 +45,11 @@ contract Executor {
         bytes32[] memory keys = new bytes32[](1);
         bytes[] memory values = new bytes[](1);
 
-        keys[0] = keccak256(abi.encodePacked("MyFirstKey"));
-        values[0] = abi.encodePacked("Hello Lukso");
+        keys[0] = keccak256(abi.encodePacked("Some Key"));
+        values[0] = abi.encodePacked("Some value");
 
         bytes memory erc725Payload = abi.encodeWithSelector(
-            _universalProfile.setData.selector,
+            setDataMultipleSelector,
             keys,
             values
         );
@@ -68,7 +68,7 @@ contract Executor {
         values[0] = _value;
 
         bytes memory erc725Payload = abi.encodeWithSelector(
-            _universalProfile.setData.selector,
+            setDataMultipleSelector,
             keys,
             values
         );
@@ -114,13 +114,12 @@ contract Executor {
         bytes32[] memory keys = new bytes32[](1);
         bytes[] memory values = new bytes[](1);
 
-        // keccak256('MyFirstKey')
         // prettier-ignore
-        keys[0] = 0x00b76b597620a89621ab37aedc4220d553ad6145a885461350e5990372b906f5;
-        values[0] = "Hello Lukso";
+        keys[0] = 0x562d53c1631c0c1620e183763f5f6356addcf78f26cbbd0b9eb7061d7c897ea1;
+        values[0] = "Some value";
 
         bytes memory erc725Payload = abi.encodeWithSelector(
-            _universalProfile.setData.selector,
+            setDataMultipleSelector,
             keys,
             values
         );
@@ -139,11 +138,11 @@ contract Executor {
         bytes32[] memory keys = new bytes32[](1);
         bytes[] memory values = new bytes[](1);
 
-        keys[0] = keccak256(abi.encodePacked("MyFirstKey"));
-        values[0] = abi.encodePacked("Hello Lukso");
+        keys[0] = keccak256(abi.encodePacked("Some Key"));
+        values[0] = abi.encodePacked("Some value");
 
         bytes memory erc725Payload = abi.encodeWithSelector(
-            _universalProfile.setData.selector,
+            setDataMultipleSelector,
             keys,
             values
         );
@@ -169,7 +168,7 @@ contract Executor {
         values[0] = _value;
 
         bytes memory erc725Payload = abi.encodeWithSelector(
-            _universalProfile.setData.selector,
+            setDataMultipleSelector,
             keys,
             values
         );

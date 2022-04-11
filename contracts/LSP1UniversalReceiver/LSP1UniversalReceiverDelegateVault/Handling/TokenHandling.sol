@@ -9,8 +9,7 @@ import "../../../LSP6KeyManager/LSP6KeyManager.sol";
 import "../../../LSP7DigitalAsset/ILSP7DigitalAsset.sol";
 
 // libraries
-import "@openzeppelin/contracts/utils/introspection/ERC165Checker.sol";
-import "../../../Utils/ERC725Utils.sol";
+import "../../../Utils/ERC165CheckerCustom.sol";
 import "../../../LSP2ERC725YJSONSchema/LSP2Utils.sol";
 import "../../../LSP5ReceivedAssets/LSP5Utils.sol";
 import "../../LSP1Utils.sol";
@@ -22,15 +21,19 @@ import "../../LSP1Constants.sol";
  * @dev Function logic to add and remove the MapAndArrayKey of incoming assets and vaults
  */
 abstract contract TokenHandling {
-    using ERC725Utils for IERC725Y;
-
     // internal functions
     function _tokenHandling(address sender, bytes32 typeId)
         internal
         returns (bytes memory result)
     {
-        if (!ERC165Checker.supportsInterface(msg.sender, _INTERFACEID_LSP9))
-            return "";
+        if (sender.code.length == 0) return "";
+
+        if (
+            !ERC165CheckerCustom.supportsERC165Interface(
+                msg.sender,
+                _INTERFACEID_LSP9
+            )
+        ) return "";
 
         (
             bool senderHook,
@@ -43,7 +46,7 @@ abstract contract TokenHandling {
             mapPrefix,
             bytes20(sender)
         );
-        bytes memory mapValue = IERC725Y(msg.sender).getDataSingle(mapKey);
+        bytes memory mapValue = IERC725Y(msg.sender).getData(mapKey);
 
         if (!senderHook) {
             // if the map is already set, then do nothing

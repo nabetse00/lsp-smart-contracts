@@ -7,13 +7,13 @@ import "../../LSP6KeyManager/LSP6KeyManager.sol";
  * Helper contract to test internal functions of the KeyManager
  */
 contract KeyManagerHelper is LSP6KeyManager {
-    using LSP6Utils for ERC725;
+    using LSP6Utils for *;
 
     /* solhint-disable no-empty-blocks */
     constructor(address _account) LSP6KeyManager(_account) {}
 
     function getPermissionsFor(address _address) public view returns (bytes32) {
-        return account.getPermissionsFor(_address);
+        return ERC725Y(account).getPermissionsFor(_address);
     }
 
     function getAllowedAddressesFor(address _address)
@@ -21,7 +21,7 @@ contract KeyManagerHelper is LSP6KeyManager {
         view
         returns (bytes memory)
     {
-        return account.getAllowedAddressesFor(_address);
+        return ERC725Y(account).getAllowedAddressesFor(_address);
     }
 
     function getAllowedFunctionsFor(address _address)
@@ -29,7 +29,7 @@ contract KeyManagerHelper is LSP6KeyManager {
         view
         returns (bytes memory)
     {
-        return account.getAllowedFunctionsFor(_address);
+        return ERC725Y(account).getAllowedFunctionsFor(_address);
     }
 
     function verifyAllowedAddress(address _sender, address _recipient)
@@ -46,11 +46,10 @@ contract KeyManagerHelper is LSP6KeyManager {
         super._verifyAllowedFunction(_sender, _function);
     }
 
-    function hasPermission(bytes32 _permission, bytes32 _addressPermission)
-        public
-        pure
-        returns (bool)
-    {
-        return super._hasPermission(_permission, _addressPermission);
+    function includesPermissions(
+        bytes32 _addressPermission,
+        bytes32 _permissions
+    ) public pure returns (bool) {
+        return _addressPermission.includesPermissions(_permissions);
     }
 }

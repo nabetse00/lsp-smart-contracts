@@ -134,14 +134,16 @@ export const shouldBehaveLikeAllowedStandards = (
         let value = "0xcafecafecafecafe";
 
         let setDataPayload =
-          context.universalProfile.interface.encodeFunctionData("setData", [
-            [key],
-            [value],
-          ]);
+          context.universalProfile.interface.encodeFunctionData(
+            "setData(bytes32[],bytes[])",
+            [[key], [value]]
+          );
 
         await context.keyManager.connect(context.owner).execute(setDataPayload);
 
-        let [result] = await context.universalProfile.callStatic.getData([key]);
+        const result = await context.universalProfile.callStatic[
+          "getData(bytes32)"
+        ](key);
         expect(result).toEqual(value);
       });
     });
@@ -181,7 +183,7 @@ export const shouldBehaveLikeAllowedStandards = (
         );
 
         let transferLyxPayload =
-          otherUniversalProfile.interface.encodeFunctionData("execute", [
+          context.universalProfile.interface.encodeFunctionData("execute", [
             OPERATIONS.CALL,
             otherUniversalProfile.address,
             ethers.utils.parseEther("1"),
@@ -253,7 +255,7 @@ export const shouldBehaveLikeAllowedStandards = (
     describe("when interacting with an ERC725Account (LSP0)", () => {
       it("should fail when trying to transfer LYX", async () => {
         let transferLyxPayload =
-          otherUniversalProfile.interface.encodeFunctionData("execute", [
+          context.universalProfile.interface.encodeFunctionData("execute", [
             OPERATIONS.CALL,
             otherUniversalProfile.address,
             ethers.utils.parseEther("1"),
