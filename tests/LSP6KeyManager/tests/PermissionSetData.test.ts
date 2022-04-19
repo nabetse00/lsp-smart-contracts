@@ -68,13 +68,14 @@ export const shouldBehaveLikePermissionSetData = (
           );
 
           let payload = context.universalProfile.interface.encodeFunctionData(
-            "setData",
+            "setData(bytes32[],bytes[])",
             [[key], [value]]
           );
 
           await context.keyManager.connect(context.owner).execute(payload);
-          let [fetchedResult] =
-            await context.universalProfile.callStatic.getData([key]);
+          const fetchedResult = await context.universalProfile.callStatic[
+            "getData(bytes32)"
+          ](key);
           expect(fetchedResult).toEqual(value);
         });
       });
@@ -89,13 +90,14 @@ export const shouldBehaveLikePermissionSetData = (
           );
 
           let payload = context.universalProfile.interface.encodeFunctionData(
-            "setData",
+            "setData(bytes32[],bytes[])",
             [[key], [value]]
           );
 
           await context.keyManager.connect(canSetData).execute(payload);
-          let [fetchedResult] =
-            await context.universalProfile.callStatic.getData([key]);
+          const fetchedResult = await context.universalProfile.callStatic[
+            "getData(bytes32)"
+          ](key);
           expect(fetchedResult).toEqual(value);
         });
       });
@@ -110,7 +112,7 @@ export const shouldBehaveLikePermissionSetData = (
           );
 
           let payload = context.universalProfile.interface.encodeFunctionData(
-            "setData",
+            "setData(bytes32[],bytes[])",
             [[key], [value]]
           );
 
@@ -139,14 +141,14 @@ export const shouldBehaveLikePermissionSetData = (
           let [keys, values] = generateKeysAndValues(elements);
 
           let payload = context.universalProfile.interface.encodeFunctionData(
-            "setData",
+            "setData(bytes32[],bytes[])",
             [keys, values]
           );
 
           await context.keyManager.connect(context.owner).execute(payload);
-          let fetchedResult = await context.universalProfile.callStatic.getData(
-            keys
-          );
+          let fetchedResult = await context.universalProfile.callStatic[
+            "getData(bytes32[])"
+          ](keys);
           expect(fetchedResult).toEqual(
             Object.values(elements).map((value) =>
               ethers.utils.hexlify(ethers.utils.toUtf8Bytes(value))
@@ -171,14 +173,14 @@ export const shouldBehaveLikePermissionSetData = (
           });
 
           let payload = context.universalProfile.interface.encodeFunctionData(
-            "setData",
+            "setData(bytes32[],bytes[])",
             [keys, values]
           );
 
           await context.keyManager.connect(context.owner).execute(payload);
-          let fetchedResult = await context.universalProfile.callStatic.getData(
-            keys
-          );
+          const fetchedResult = await context.universalProfile.callStatic[
+            "getData(bytes32[])"
+          ](keys);
           expect(fetchedResult).toEqual(values);
         });
 
@@ -209,14 +211,14 @@ export const shouldBehaveLikePermissionSetData = (
           });
 
           let payload = context.universalProfile.interface.encodeFunctionData(
-            "setData",
+            "setData(bytes32[],bytes[])",
             [keys, values]
           );
 
           await context.keyManager.connect(context.owner).execute(payload);
-          let fetchedResult = await context.universalProfile.callStatic.getData(
-            keys
-          );
+          let fetchedResult = await context.universalProfile.callStatic[
+            "getData(bytes32[])"
+          ](keys);
           expect(fetchedResult).toEqual(values);
         });
       });
@@ -235,14 +237,14 @@ export const shouldBehaveLikePermissionSetData = (
           let [keys, values] = generateKeysAndValues(elements);
 
           let payload = context.universalProfile.interface.encodeFunctionData(
-            "setData",
+            "setData(bytes32[],bytes[])",
             [keys, values]
           );
 
           await context.keyManager.connect(canSetData).execute(payload);
-          let fetchedResult = await context.universalProfile.callStatic.getData(
-            keys
-          );
+          let fetchedResult = await context.universalProfile.callStatic[
+            "getData(bytes32[])"
+          ](keys);
           expect(fetchedResult).toEqual(
             Object.values(elements).map((value) =>
               ethers.utils.hexlify(ethers.utils.toUtf8Bytes(value))
@@ -267,14 +269,14 @@ export const shouldBehaveLikePermissionSetData = (
           });
 
           let payload = context.universalProfile.interface.encodeFunctionData(
-            "setData",
+            "setData(bytes32[],bytes[])",
             [keys, values]
           );
 
           await context.keyManager.connect(canSetData).execute(payload);
-          let fetchedResult = await context.universalProfile.callStatic.getData(
-            keys
-          );
+          let fetchedResult = await context.universalProfile.callStatic[
+            "getData(bytes32[])"
+          ](keys);
           expect(fetchedResult).toEqual(values);
         });
 
@@ -305,14 +307,14 @@ export const shouldBehaveLikePermissionSetData = (
           });
 
           let payload = context.universalProfile.interface.encodeFunctionData(
-            "setData",
+            "setData(bytes32[],bytes[])",
             [keys, values]
           );
 
           await context.keyManager.connect(canSetData).execute(payload);
-          let fetchedResult = await context.universalProfile.callStatic.getData(
-            keys
-          );
+          let fetchedResult = await context.universalProfile.callStatic[
+            "getData(bytes32[])"
+          ](keys);
           expect(fetchedResult).toEqual(values);
         });
       });
@@ -330,7 +332,7 @@ export const shouldBehaveLikePermissionSetData = (
           let [keys, values] = generateKeysAndValues(elements);
 
           let payload = context.universalProfile.interface.encodeFunctionData(
-            "setData",
+            "setData(bytes32[],bytes[])",
             [keys, values]
           );
 
@@ -360,7 +362,7 @@ export const shouldBehaveLikePermissionSetData = (
           });
 
           let payload = context.universalProfile.interface.encodeFunctionData(
-            "setData",
+            "setData(bytes32[],bytes[])",
             [keys, values]
           );
 
@@ -400,7 +402,7 @@ export const shouldBehaveLikePermissionSetData = (
           });
 
           let payload = context.universalProfile.interface.encodeFunctionData(
-            "setData",
+            "setData(bytes32[],bytes[])",
             [keys, values]
           );
 
@@ -455,49 +457,52 @@ export const shouldBehaveLikePermissionSetData = (
     describe("> contract calls", () => {
       it("should allow to set a key hardcoded inside a function of the calling contract", async () => {
         // check that nothing is set at store[key]
-        let [initialStorage] =
-          await context.universalProfile.callStatic.getData([key]);
+        const initialStorage = await context.universalProfile.callStatic[
+          "getData(bytes32)"
+        ](key);
         expect(initialStorage).toEqual("0x");
 
         // make the executor call
         await contractCanSetData.setHardcodedKey();
 
         // check that store[key] is now set to value
-        let [newStorage] = await context.universalProfile.callStatic.getData([
-          key,
-        ]);
+        const newStorage = await context.universalProfile.callStatic[
+          "getData(bytes32)"
+        ](key);
         expect(newStorage).toEqual(value);
       });
 
       it("Should allow to set a key computed inside a function of the calling contract", async () => {
         // check that nothing is set at store[key]
-        let [initialStorage] =
-          await context.universalProfile.callStatic.getData([key]);
+        const initialStorage = await context.universalProfile.callStatic[
+          "getData(bytes32)"
+        ](key);
         expect(initialStorage).toEqual("0x");
 
         // make the executor call
         await contractCanSetData.setComputedKey();
 
         // check that store[key] is now set to value
-        let [newStorage] = await context.universalProfile.callStatic.getData([
-          key,
-        ]);
+        const newStorage = await context.universalProfile.callStatic[
+          "getData(bytes32)"
+        ](key);
         expect(newStorage).toEqual(value);
       });
 
       it("Should allow to set a key computed from parameters given to a function of the calling contract", async () => {
         // check that nothing is set at store[key]
-        let [initialStorage] =
-          await context.universalProfile.callStatic.getData([key]);
+        const initialStorage = await context.universalProfile.callStatic[
+          "getData(bytes32)"
+        ](key);
         expect(initialStorage).toEqual("0x");
 
         // make the executor call
         await contractCanSetData.setComputedKeyFromParams(key, value);
 
         // check that store[key] is now set to value
-        let [newStorage] = await context.universalProfile.callStatic.getData([
-          key,
-        ]);
+        const newStorage = await context.universalProfile.callStatic[
+          "getData(bytes32)"
+        ](key);
         expect(newStorage).toEqual(value);
       });
     });
@@ -505,8 +510,9 @@ export const shouldBehaveLikePermissionSetData = (
     describe("> Low-level calls", () => {
       it("Should allow to `setHardcodedKeyRawCall` on UP", async () => {
         // check that nothing is set at store[key]
-        let [initialStorage] =
-          await context.universalProfile.callStatic.getData([key]);
+        const initialStorage = await context.universalProfile.callStatic[
+          "getData(bytes32)"
+        ](key);
         expect(initialStorage).toEqual("0x");
 
         // check if low-level call succeeded
@@ -523,16 +529,17 @@ export const shouldBehaveLikePermissionSetData = (
         });
 
         // check that store[key] is now set to value
-        let [newStorage] = await context.universalProfile.callStatic.getData([
-          key,
-        ]);
+        const newStorage = await context.universalProfile.callStatic[
+          "getData(bytes32)"
+        ](key);
         expect(newStorage).toEqual(value);
       });
 
       it("Should allow to `setComputedKeyRawCall` on UP", async () => {
         // check that nothing is set at store[key]
-        let [initialStorage] =
-          await context.universalProfile.callStatic.getData([key]);
+        const initialStorage = await context.universalProfile.callStatic[
+          "getData(bytes32)"
+        ](key);
         expect(initialStorage).toEqual("0x");
 
         // make the executor call
@@ -541,16 +548,17 @@ export const shouldBehaveLikePermissionSetData = (
         });
 
         // check that store[key] is now set to value
-        let [newStorage] = await context.universalProfile.callStatic.getData([
-          key,
-        ]);
+        const newStorage = await context.universalProfile.callStatic[
+          "getData(bytes32)"
+        ](key);
         expect(newStorage).toEqual(value);
       });
 
       it("Should allow to `setComputedKeyFromParamsRawCall` on UP", async () => {
         // check that nothing is set at store[key]
-        let [initialStorage] =
-          await context.universalProfile.callStatic.getData([key]);
+        let initialStorage = await context.universalProfile.callStatic[
+          "getData(bytes32)"
+        ](key);
         expect(initialStorage).toEqual("0x");
 
         // make the executor call
@@ -559,9 +567,9 @@ export const shouldBehaveLikePermissionSetData = (
         });
 
         // check that store[key] is now set to value
-        let [newStorage] = await context.universalProfile.callStatic.getData([
-          key,
-        ]);
+        let newStorage = await context.universalProfile.callStatic[
+          "getData(bytes32)"
+        ](key);
         expect(newStorage).toEqual(value);
       });
     });
