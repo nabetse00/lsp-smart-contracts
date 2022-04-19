@@ -1689,7 +1689,7 @@ export const shouldBehaveLikeAllowedERC725YKeys = (
     });
   });
 
-  describe.only("edge cases", () => {
+  describe.skip("edge cases", () => {
     let controllerCanSetOneKey: SignerWithAddress;
 
     const allowedKey = ethers.utils.keccak256(
@@ -1727,15 +1727,15 @@ export const shouldBehaveLikeAllowedERC725YKeys = (
       let value = ethers.utils.hexlify(ethers.utils.toUtf8Bytes("Some Value"));
 
       let setDataPayload =
-        context.universalProfile.interface.encodeFunctionData("setData", [
-          [key],
-          [value],
-        ]);
+        context.universalProfile.interface.encodeFunctionData(
+          "setData(bytes32[],bytes[])",
+          [[key], [value]]
+        );
       await context.keyManager
         .connect(controllerCanSetOneKey)
         .execute(setDataPayload);
 
-      let [result] = await context.universalProfile.getData([key]);
+      let [result] = await context.universalProfile["getData(bytes32)"](key);
       expect(result).toEqual(value);
     });
 
@@ -1745,15 +1745,15 @@ export const shouldBehaveLikeAllowedERC725YKeys = (
       let value = "0xcafecafe";
 
       let setDataPayload =
-        context.universalProfile.interface.encodeFunctionData("setData", [
-          [key],
-          [value],
-        ]);
+        context.universalProfile.interface.encodeFunctionData(
+          "setData(bytes32[],bytes[])",
+          [[key], [value]]
+        );
       await context.keyManager
         .connect(controllerCanSetOneKey)
         .execute(setDataPayload);
 
-      let [result] = await context.universalProfile.getData([key]);
+      let result = await context.universalProfile["getData(bytes32)"](key);
       expect(result).toEqual(value);
     });
   });

@@ -69,7 +69,6 @@ export const shouldBehaveLikeAllowedAddresses = (
         ["address[]"],
         [[allowedEOA.address, allowedTargetContract.address]]
       ),
-      ethers.utils.hexZeroPad(PERMISSIONS.CALL + PERMISSIONS.TRANSFERVALUE, 32),
     ];
 
     await setupKeyManager(context, permissionsKeys, permissionsValues);
