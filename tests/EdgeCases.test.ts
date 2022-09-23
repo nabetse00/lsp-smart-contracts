@@ -50,10 +50,12 @@ describe("testing notification hook in `transferOwnership(...)` of LSP9Vault", (
 
             // does not revert
             let tx = await vault.connect(owner).transferOwnership(newOwner.address)
-            let receipt = await tx.wait();
 
-            // does not emit any event
-            expect(receipt.logs).to.deep.equal([])
+            // emit OwnershipTransferStarted event
+            expect(tx).to.emit(vault, "OwnershipTransferStarted").withArgs(
+                owner.address,
+                newOwner.address
+            )
 
             // pendingOwner is now EOA address
             expect(await vault.pendingOwner()).to.equal(newOwner.address);
@@ -67,10 +69,12 @@ describe("testing notification hook in `transferOwnership(...)` of LSP9Vault", (
 
             // does not revert
             let tx = await vault.connect(owner).transferOwnership(targetContract.address)
-            let receipt = await tx.wait();
 
-            // does not emit any events
-            expect(receipt.logs).to.deep.equal([])
+            // emit OwnershipTransferStarted event
+            expect(tx).to.emit(vault, "OwnershipTransferStarted").withArgs(
+                owner.address,
+                targetContract.address
+            )
 
             // pending owner should be random contract address
             expect(await vault.pendingOwner()).to.equal(targetContract.address)
@@ -87,9 +91,15 @@ describe("testing notification hook in `transferOwnership(...)` of LSP9Vault", (
 
             // the pendingOwner is now the UP address
             expect(await vault.pendingOwner()).to.equal(newOwner.address)
+
+            // emit OwnershipTransferStarted event
+            expect(tx).to.emit(vault, "OwnershipTransferStarted").withArgs(
+                owner.address,
+                newOwner.address
+            )
             
             // does emit a UniversalReceiver event on the UP newOwner
-            await expect(tx).to.emit(newOwner, "UniversalReceiver").withArgs(
+            expect(tx).to.emit(newOwner, "UniversalReceiver").withArgs(
                 vault.address, //  from,
                 0, //  value,
                 LSP1_TYPE_IDS.LSP9_VAULTPENDINGOWNER, //  typeId,
@@ -136,7 +146,7 @@ describe("testing notification hook in `transferOwnership(...)` of LSP9Vault", (
               // check that the owner of the UP is the keyManager
               expect(await context.universalProfile.owner()).to.equal(context.keyManager.address)
 
-              // what happen if I transfer ownership of the vault to this UP?
+              // it reverts on the UniversalReceiverDelegate contract and bubble all the way back up
               await expect(
                 vault.connect(owner).transferOwnership(context.universalProfile.address)
               ).to.be.revertedWith("LSP1Delegate: something went wrong at `universalReceiverDelegate(...)` function")
@@ -170,6 +180,7 @@ describe("testing notification hook in `transferOwnership(...)` of LSP9Vault", (
             ).to.be.reverted;
 
             // pending owner is not set then since it reverts
+            expect(await vault.pendingOwner()).to.equal(ethers.constants.AddressZero)
         })
     })
 
@@ -184,6 +195,7 @@ describe("testing notification hook in `transferOwnership(...)` of LSP9Vault", (
             ).to.be.reverted;
 
             // the pending owner is not set then since it reverts
+            expect(await vault.pendingOwner()).to.equal(ethers.constants.AddressZero)
         })
     })
 
@@ -213,23 +225,23 @@ describe("testing notification hook in `transferOwnership(...)` of LSP9Vault", (
             
             // does not revert
             let tx = await vault.connect(owner).transferOwnership(fallbackContract.address);
-            let receipt = await tx.wait();
 
             // no logs emitted, even if there was some logs emitted in the fallback function of the fallbackContract
             // this means that the fallback function of the contract is not called (because contract does not supports LSP1 interface)
-            expect(receipt.logs).to.deep.equal([])
+            expect(tx).to.emit(vault, "OwnershipTransferStarted").withArgs(
+                owner.address,
+                fallbackContract.address
+            )
 
             // the pending owner is set correctly
             expect(await vault.pendingOwner()).to.equal(fallbackContract.address)
         })
     })
 
-    // transfer to address(0) = just reset pending owner to address(0) (Already know and tested)
-
     // these are more edge cases
     // ----------
 
-    describe("when transferOwnership() + claimOwnership() to the same current owner", () => {
+    describe.skip("when transferOwnership() + claimOwnership() to the same current owner", () => {
 
         it("test", async () => {
             let [up, km, urd] = await setupProfileWithKeyManagerWithURD(owner);
