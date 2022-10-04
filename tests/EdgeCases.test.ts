@@ -1,20 +1,21 @@
-import { expect } from "chai"
-import { ethers } from "hardhat"
+import { expect } from "chai";
+import { ethers } from "hardhat";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 
-import { 
-    LSP1UniversalReceiverDelegateUP, 
-    LSP6KeyManager, 
-    LSP9Vault, 
-    LSP9Vault__factory, 
-    TargetContract__factory, 
-    UniversalProfile, 
-    UniversalProfile__factory,
-    FallbackContract,
-    FallbackContract__factory,
-    LSP6KeyManager__factory,
+import {
+  LSP1UniversalReceiverDelegateUP,
+  LSP6KeyManager,
+  LSP9Vault,
+  LSP9Vault__factory,
+  TargetContract__factory,
+  UniversalProfile,
+  UniversalProfile__factory,
+  FallbackContract,
+  FallbackContract__factory,
+  LSP6KeyManager__factory,
+  LSP7Mintable__factory,
 } from "../types";
-    
+
 import { LSP1ImplementerReverts } from "../types/contracts/Helpers/UniversalReceivers/LSP1ImplementerReverts";
 import { LSP1ImplementerReverts__factory } from "../types/factories/contracts/Helpers/UniversalReceivers/LSP1ImplementerReverts__factory";
 
@@ -27,285 +28,360 @@ import { LSP1FakerFallback__factory } from "../types/factories/contracts/Helpers
 import { LSP1DelegateRevert } from "../types/contracts/Helpers/UniversalReceivers/LSP1DelegateReverts.sol/LSP1DelegateRevert";
 import { LSP1DelegateRevert__factory } from "../types/factories/contracts/Helpers/UniversalReceivers/LSP1DelegateReverts.sol/LSP1DelegateRevert__factory";
 
-import { setupKeyManager, setupProfileWithKeyManagerWithURD } from "./utils/fixtures";
+import {
+  setupKeyManager,
+  setupProfileWithKeyManagerWithURD,
+} from "./utils/fixtures";
 import { ERC725YKeys, INTERFACE_IDS, LSP1_TYPE_IDS } from "../constants";
 import { LSP6TestContext } from "./utils/context";
 
 describe("testing notification hook in `transferOwnership(...)` of LSP9Vault", () => {
+  let accounts: SignerWithAddress[];
+  let owner: SignerWithAddress;
+  let vault: LSP9Vault;
 
-    let accounts: SignerWithAddress[]
-    let owner: SignerWithAddress
-    let vault: LSP9Vault;
+  beforeEach(async () => {
+    accounts = await ethers.getSigners();
+    owner = accounts[0];
+    vault = await new LSP9Vault__factory(owner).deploy(owner.address);
+  });
 
-    beforeEach(async () => {
-        accounts = await ethers.getSigners()
-        owner = accounts[0]
-        vault = await new LSP9Vault__factory(owner).deploy(owner.address)
-    })
+  // an EOA?
+  describe("when transferring ownership to an EOA", () => {
+    it("what happen?", async () => {
+      const newOwner = accounts[5];
 
-    // an EOA?
-    describe("when transferring ownership to an EOA", () => {
-        it("what happen?", async () => {
-            const newOwner = accounts[5];
+      // does not revert
+      let tx = await vault.connect(owner).transferOwnership(newOwner.address);
 
-            // does not revert
-            let tx = await vault.connect(owner).transferOwnership(newOwner.address)
+      // emit OwnershipTransferStarted event
+      expect(tx)
+        .to.emit(vault, "OwnershipTransferStarted")
+        .withArgs(owner.address, newOwner.address);
 
-            // emit OwnershipTransferStarted event
-            expect(tx).to.emit(vault, "OwnershipTransferStarted").withArgs(
-                owner.address,
-                newOwner.address
-            )
+      // pendingOwner is now EOA address
+      expect(await vault.pendingOwner()).to.equal(newOwner.address);
+    });
+  });
 
-            // pendingOwner is now EOA address
-            expect(await vault.pendingOwner()).to.equal(newOwner.address);
-        })
-    })
+  // a random smart contract (random one)?
+  describe("when transferring ownership to a random contract", () => {
+    it("what happen?", async () => {
+      let targetContract = await new TargetContract__factory(owner).deploy();
 
-    // a random smart contract (random one)?
-    describe("when transferring ownership to a random contract", () => {
-        it("what happen?", async () => {
-            let targetContract = await new TargetContract__factory(owner).deploy()
+      // does not revert
+      let tx = await vault
+        .connect(owner)
+        .transferOwnership(targetContract.address);
 
-            // does not revert
-            let tx = await vault.connect(owner).transferOwnership(targetContract.address)
+      // emit OwnershipTransferStarted event
+      expect(tx)
+        .to.emit(vault, "OwnershipTransferStarted")
+        .withArgs(owner.address, targetContract.address);
 
-            // emit OwnershipTransferStarted event
-            expect(tx).to.emit(vault, "OwnershipTransferStarted").withArgs(
-                owner.address,
-                targetContract.address
-            )
+      // pending owner should be random contract address
+      expect(await vault.pendingOwner()).to.equal(targetContract.address);
+    });
+  });
 
-            // pending owner should be random contract address
-            expect(await vault.pendingOwner()).to.equal(targetContract.address)
-        });
-    })
+  // a Universal Profile
+  describe("when transferring ownership to a universal Profile", () => {
+    it("what happen?", async () => {
+      let newOwner = await new UniversalProfile__factory(accounts[1]).deploy(
+        accounts[1].address
+      );
 
-    // a Universal Profile
-    describe("when transferring ownership to a universal Profile", () => {
+      let tx = await vault.connect(owner).transferOwnership(newOwner.address);
 
-        it("what happen?", async () => {
-            let newOwner = await new UniversalProfile__factory(accounts[1]).deploy(accounts[1].address)
+      // the pendingOwner is now the UP address
+      expect(await vault.pendingOwner()).to.equal(newOwner.address);
 
-            let tx = await vault.connect(owner).transferOwnership(newOwner.address)
+      // emit OwnershipTransferStarted event
+      expect(tx)
+        .to.emit(vault, "OwnershipTransferStarted")
+        .withArgs(owner.address, newOwner.address);
 
-            // the pendingOwner is now the UP address
-            expect(await vault.pendingOwner()).to.equal(newOwner.address)
+      // does emit a UniversalReceiver event on the UP newOwner
+      expect(tx).to.emit(newOwner, "UniversalReceiver").withArgs(
+        vault.address, //  from,
+        0, //  value,
+        LSP1_TYPE_IDS.LSP9_VAULTPENDINGOWNER, //  typeId,
+        "0x", //  receivedData,
+        "0x" //  returnedValue
+      );
+    });
+  });
 
-            // emit OwnershipTransferStarted event
-            expect(tx).to.emit(vault, "OwnershipTransferStarted").withArgs(
-                owner.address,
-                newOwner.address
-            )
-            
-            // does emit a UniversalReceiver event on the UP newOwner
-            expect(tx).to.emit(newOwner, "UniversalReceiver").withArgs(
-                vault.address, //  from,
-                0, //  value,
-                LSP1_TYPE_IDS.LSP9_VAULTPENDINGOWNER, //  typeId,
-                "0x", //  receivedData,
-                "0x"    //  returnedValue
-            ) 
-        })
+  describe("when the universalReceiverDelegate(...) function (called by the `universalReceiver(...)` function) ", () => {
+    it("what happen?", async () => {
+      const buildLSP6Context = async (): Promise<LSP6TestContext> => {
+        const accounts = await ethers.getSigners();
+        const owner = accounts[0];
 
-    })
+        const universalProfile = await new UniversalProfile__factory(
+          owner
+        ).deploy(owner.address);
+        const keyManager = await new LSP6KeyManager__factory(owner).deploy(
+          universalProfile.address
+        );
 
-    describe("when the universalReceiverDelegate(...) function (called by the `universalReceiver(...)` function) ", () => {
-        it("what happen?", async () => {
-            const buildLSP6Context = async (): Promise<LSP6TestContext> => {
-                const accounts = await ethers.getSigners();
-                const owner = accounts[0];
-          
-                const universalProfile = await new UniversalProfile__factory(
-                  owner
-                ).deploy(owner.address);
-                const keyManager = await new LSP6KeyManager__factory(owner).deploy(
-                  universalProfile.address
-                );
-          
-                return { accounts, owner, universalProfile, keyManager };
-              };
-              
-              const context = await buildLSP6Context();
+        return { accounts, owner, universalProfile, keyManager };
+      };
 
-              const lsp1DelegateReverts: LSP1DelegateRevert = await new LSP1DelegateRevert__factory(context.owner).deploy()
+      const context = await buildLSP6Context();
 
-              const keysSetup = [
-                ERC725YKeys.LSP1["LSP1UniversalReceiverDelegate"]
-              ]
+      const lsp1DelegateReverts: LSP1DelegateRevert =
+        await new LSP1DelegateRevert__factory(context.owner).deploy();
 
-              const valuesSetup = [
-                lsp1DelegateReverts.address
-              ]
+      const keysSetup = [ERC725YKeys.LSP1["LSP1UniversalReceiverDelegate"]];
 
-              await setupKeyManager(context, keysSetup, valuesSetup)
+      const valuesSetup = [lsp1DelegateReverts.address];
 
-              // check lsp1DelegateRevert address is setup on the storage
-              expect(await context.universalProfile["getData(bytes32)"](ERC725YKeys.LSP1["LSP1UniversalReceiverDelegate"])).to.equal(lsp1DelegateReverts.address.toLowerCase())
+      await setupKeyManager(context, keysSetup, valuesSetup);
 
-              // check that the owner of the UP is the keyManager
-              expect(await context.universalProfile.owner()).to.equal(context.keyManager.address)
+      // check lsp1DelegateRevert address is setup on the storage
+      expect(
+        await context.universalProfile["getData(bytes32)"](
+          ERC725YKeys.LSP1["LSP1UniversalReceiverDelegate"]
+        )
+      ).to.equal(lsp1DelegateReverts.address.toLowerCase());
 
-              // it reverts on the UniversalReceiverDelegate contract and bubble all the way back up
-              await expect(
-                vault.connect(owner).transferOwnership(context.universalProfile.address)
-              ).to.be.revertedWith("LSP1Delegate: something went wrong at `universalReceiverDelegate(...)` function")
-        })
-    })
+      // check that the owner of the UP is the keyManager
+      expect(await context.universalProfile.owner()).to.equal(
+        context.keyManager.address
+      );
 
+      // it reverts on the UniversalReceiverDelegate contract and bubble all the way back up
+      await expect(
+        vault.connect(owner).transferOwnership(context.universalProfile.address)
+      ).to.be.revertedWith(
+        "LSP1Delegate: something went wrong at `universalReceiverDelegate(...)` function"
+      );
+    });
+  });
 
-    // LSP1ImplementerRevert
-    describe("when transferring ownership to a smart contract that implements LSP1 and reverts", () => {
-        
-        it("ensure contract supports LSP1 interface", async () => {
-            let lsp1ThatReverts: LSP1ImplementerReverts = await new LSP1ImplementerReverts__factory(owner).deploy()
-            expect(
-                await lsp1ThatReverts.supportsInterface(INTERFACE_IDS.LSP1UniversalReceiver)
-            ).to.be.true;
-        })
+  // LSP1ImplementerRevert
+  describe("when transferring ownership to a smart contract that implements LSP1 and reverts", () => {
+    it("ensure contract supports LSP1 interface", async () => {
+      let lsp1ThatReverts: LSP1ImplementerReverts =
+        await new LSP1ImplementerReverts__factory(owner).deploy();
+      expect(
+        await lsp1ThatReverts.supportsInterface(
+          INTERFACE_IDS.LSP1UniversalReceiver
+        )
+      ).to.be.true;
+    });
 
-        it("ensure can call universalReceiver(...) function on the contract", async () => {
-            let lsp1ThatReverts: LSP1ImplementerReverts = await new LSP1ImplementerReverts__factory(owner).deploy()
-            await expect(
-                lsp1ThatReverts.universalReceiver("0xcafecafecafecafecafecafecafecafecafecafecafecafecafecafecafecafe", "0x")
-            ).to.be.revertedWith("!")
-        })
-            
-        it("what happen?", async () => {
-            let lsp1ImplementerRevert: LSP1ImplementerReverts = await new LSP1ImplementerReverts__factory(owner).deploy()
+    it("ensure can call universalReceiver(...) function on the contract", async () => {
+      let lsp1ThatReverts: LSP1ImplementerReverts =
+        await new LSP1ImplementerReverts__factory(owner).deploy();
+      await expect(
+        lsp1ThatReverts.universalReceiver(
+          "0xcafecafecafecafecafecafecafecafecafecafecafecafecafecafecafecafe",
+          "0x"
+        )
+      ).to.be.revertedWith("!");
+    });
 
-            // it completely revert (pending owner not set, UniversalReceiver event not emitted)
-            await expect(
-                vault.connect(owner).transferOwnership(lsp1ImplementerRevert.address)
-            ).to.be.reverted;
+    it("what happen?", async () => {
+      let lsp1ImplementerRevert: LSP1ImplementerReverts =
+        await new LSP1ImplementerReverts__factory(owner).deploy();
 
-            // pending owner is not set then since it reverts
-            expect(await vault.pendingOwner()).to.equal(ethers.constants.AddressZero)
-        })
-    })
+      // it completely revert (pending owner not set, UniversalReceiver event not emitted)
+      await expect(
+        vault.connect(owner).transferOwnership(lsp1ImplementerRevert.address)
+      ).to.be.reverted;
 
-    // LSP1Faker
-    describe("when transferring ownership to a contract that fakes supportsInterface(LSP1) and does not contain universalReceiver(...) function", () => {
-        it("what happen?", async () => {
-            let lsp1Faker: LSP1Faker = await new LSP1Faker__factory(owner).deploy()
+      // pending owner is not set then since it reverts
+      expect(await vault.pendingOwner()).to.equal(ethers.constants.AddressZero);
+    });
+  });
 
-            // reverts
-            await expect(
-                vault.connect(owner).transferOwnership(lsp1Faker.address)
-            ).to.be.reverted;
+  // LSP1Faker
+  describe("when transferring ownership to a contract that fakes supportsInterface(LSP1) and does not contain universalReceiver(...) function", () => {
+    it("what happen?", async () => {
+      let lsp1Faker: LSP1Faker = await new LSP1Faker__factory(owner).deploy();
 
-            // the pending owner is not set then since it reverts
-            expect(await vault.pendingOwner()).to.equal(ethers.constants.AddressZero)
-        })
-    })
+      // reverts
+      await expect(vault.connect(owner).transferOwnership(lsp1Faker.address)).to
+        .be.reverted;
 
-    // LSP1FakerFallback
-    describe("when transferring ownership to a contract that fakes supportsInterface(LSP1), does not contain the universalReceiver(...) but has a fallback function", () => {
+      // the pending owner is not set then since it reverts
+      expect(await vault.pendingOwner()).to.equal(ethers.constants.AddressZero);
+    });
+  });
 
-        it("what happen?", async () => {
-            let lsp1FakerFallback: LSP1FakerFallback = await new LSP1FakerFallback__factory(owner).deploy()
+  // LSP1FakerFallback
+  describe("when transferring ownership to a contract that fakes supportsInterface(LSP1), does not contain the universalReceiver(...) but has a fallback function", () => {
+    it("what happen?", async () => {
+      let lsp1FakerFallback: LSP1FakerFallback =
+        await new LSP1FakerFallback__factory(owner).deploy();
 
-            // it reverts, because it cannot reach the .universalReceiver(...) function, and it does not even reach the fallback function.
-            // because the explicit type conversion below expect the contract to have the `.universalReceiver(...)` function.
-            //
-            // ILSP1UniversalReceiver(newPendingOwner).universalReceiver(
-            //     _TYPEID_LSP9_VAULTPENDINGOWNER,
-            //     ""
-            // );
-            await expect(
-                vault.connect(owner).transferOwnership(lsp1FakerFallback.address)
-            ).to.be.reverted;
-        })
-    })
+      // it reverts, because it cannot reach the .universalReceiver(...) function, and it does not even reach the fallback function.
+      // because the explicit type conversion below expect the contract to have the `.universalReceiver(...)` function.
+      //
+      // ILSP1UniversalReceiver(newPendingOwner).universalReceiver(
+      //     _TYPEID_LSP9_VAULTPENDINGOWNER,
+      //     ""
+      // );
+      await expect(
+        vault.connect(owner).transferOwnership(lsp1FakerFallback.address)
+      ).to.be.reverted;
+    });
+  });
 
-    // FallbackContract
-    describe("when transferring ownership to a contract that does not supports LSP1 interface and has a fallback function", () => {
-        it("what happen?", async () => {
-            let fallbackContract = await new FallbackContract__factory(owner).deploy()
-            
-            // does not revert
-            let tx = await vault.connect(owner).transferOwnership(fallbackContract.address);
+  // FallbackContract
+  describe("when transferring ownership to a contract that does not supports LSP1 interface and has a fallback function", () => {
+    it("what happen?", async () => {
+      let fallbackContract = await new FallbackContract__factory(
+        owner
+      ).deploy();
 
-            // no logs emitted, even if there was some logs emitted in the fallback function of the fallbackContract
-            // this means that the fallback function of the contract is not called (because contract does not supports LSP1 interface)
-            expect(tx).to.emit(vault, "OwnershipTransferStarted").withArgs(
-                owner.address,
-                fallbackContract.address
-            )
+      // does not revert
+      let tx = await vault
+        .connect(owner)
+        .transferOwnership(fallbackContract.address);
 
-            // the pending owner is set correctly
-            expect(await vault.pendingOwner()).to.equal(fallbackContract.address)
-        })
-    })
+      // no logs emitted, even if there was some logs emitted in the fallback function of the fallbackContract
+      // this means that the fallback function of the contract is not called (because contract does not supports LSP1 interface)
+      expect(tx)
+        .to.emit(vault, "OwnershipTransferStarted")
+        .withArgs(owner.address, fallbackContract.address);
 
-    // these are more edge cases
-    // ----------
+      // the pending owner is set correctly
+      expect(await vault.pendingOwner()).to.equal(fallbackContract.address);
+    });
+  });
 
-    describe.skip("when transferOwnership() + claimOwnership() to the same current owner", () => {
+  // these are more edge cases
+  // ----------
 
-        it("test", async () => {
-            let [up, km, urd] = await setupProfileWithKeyManagerWithURD(owner);
+  describe.skip("when transferOwnership() + claimOwnership() to the same current owner", () => {
+    it("test", async () => {
+      let [up, km, urd] = await setupProfileWithKeyManagerWithURD(owner);
 
-            let universalProfile = up as UniversalProfile;
-            let keyManager = km as LSP6KeyManager;
-            let universalReceiverDelegate = urd as LSP1UniversalReceiverDelegateUP;
+      let universalProfile = up as UniversalProfile;
+      let keyManager = km as LSP6KeyManager;
+      let universalReceiverDelegate = urd as LSP1UniversalReceiverDelegateUP;
 
-            const vault = await new LSP9Vault__factory(owner).deploy(universalProfile.address)
-            console.log("vault: ", vault.address)
+      const vault = await new LSP9Vault__factory(owner).deploy(
+        universalProfile.address
+      );
+      console.log("vault: ", vault.address);
 
-            const [arrayLength, arrayIndex] = await universalProfile["getData(bytes32[])"]([
-                ERC725YKeys.LSP10["LSP10Vaults[]"].length,
-                ERC725YKeys.LSP10["LSP10Vaults[]"].index + "00000000000000000000000000000000",
-            ])
+      const [arrayLength, arrayIndex] = await universalProfile[
+        "getData(bytes32[])"
+      ]([
+        ERC725YKeys.LSP10["LSP10Vaults[]"].length,
+        ERC725YKeys.LSP10["LSP10Vaults[]"].index +
+          "00000000000000000000000000000000",
+      ]);
 
-            // arrayLength = bytes -> "0x0000000000000000000000000000000000000000000000000000000000000001"
-            // arrayLength.length = uint256 -> 32
+      // arrayLength = bytes -> "0x0000000000000000000000000000000000000000000000000000000000000001"
+      // arrayLength.length = uint256 -> 32
 
-            console.log("arrayLength: ", arrayLength)
-            console.log("arrayIndex: ", arrayIndex)
+      console.log("arrayLength: ", arrayLength);
+      console.log("arrayIndex: ", arrayIndex);
 
-            // Key Manager -> Universal Profile -> Vault
-            //  3                   2                1
+      // Key Manager -> Universal Profile -> Vault
+      //  3                   2                1
 
-            const pendingOwnerBefore = await vault.pendingOwner()
-            console.log("pendingOwnerBefore: ", pendingOwnerBefore)
+      const pendingOwnerBefore = await vault.pendingOwner();
+      console.log("pendingOwnerBefore: ", pendingOwnerBefore);
 
-            const transferOwnershipPayload = vault.interface.encodeFunctionData("transferOwnership", [universalProfile.address])
-            let executePayload = universalProfile.interface.encodeFunctionData("execute", [
-                0, // operationType
-                vault.address, // recipient
-                0, // value
-                transferOwnershipPayload
-            ]);
-            await keyManager.connect(owner).execute(executePayload)
+      const transferOwnershipPayload = vault.interface.encodeFunctionData(
+        "transferOwnership",
+        [universalProfile.address]
+      );
+      let executePayload = universalProfile.interface.encodeFunctionData(
+        "execute",
+        [
+          0, // operationType
+          vault.address, // recipient
+          0, // value
+          transferOwnershipPayload,
+        ]
+      );
+      await keyManager.connect(owner).execute(executePayload);
 
-            const pendingOwnerAfter = await vault.pendingOwner()
-            console.log("pendingOwnerAfter: ", pendingOwnerAfter)
-            expect(pendingOwnerAfter).to.equal(universalProfile.address)
-            
-            const claimOwnershipPayload = vault.interface.getSighash("claimOwnership")
-            executePayload = universalProfile.interface.encodeFunctionData("execute", [
-                0, // operationType
-                vault.address, // recipient
-                0, // value
-                claimOwnershipPayload
-            ]);
-            await keyManager.connect(owner).execute(executePayload)
+      const pendingOwnerAfter = await vault.pendingOwner();
+      console.log("pendingOwnerAfter: ", pendingOwnerAfter);
+      expect(pendingOwnerAfter).to.equal(universalProfile.address);
 
-            expect(await vault.pendingOwner()).to.equal(ethers.constants.AddressZero)
+      const claimOwnershipPayload =
+        vault.interface.getSighash("claimOwnership");
+      executePayload = universalProfile.interface.encodeFunctionData(
+        "execute",
+        [
+          0, // operationType
+          vault.address, // recipient
+          0, // value
+          claimOwnershipPayload,
+        ]
+      );
+      await keyManager.connect(owner).execute(executePayload);
 
-            const [arrayLengthAfter, arrayIndexZero, arrayIndexOne] = await universalProfile["getData(bytes32[])"]([
-                ERC725YKeys.LSP10["LSP10Vaults[]"].length,
-                ERC725YKeys.LSP10["LSP10Vaults[]"].index + "00000000000000000000000000000000",
-                ERC725YKeys.LSP10["LSP10Vaults[]"].index + "00000000000000000000000000000001",
-            ])
-            console.log("arrayLengthAfter: ", arrayLengthAfter)
-            console.log("arrayIndexZero: ", arrayIndexZero)
-            console.log("arrayIndexOne: ", arrayIndexOne)
+      expect(await vault.pendingOwner()).to.equal(ethers.constants.AddressZero);
 
-            // does it emit the UniversalReceiver event on the UP contract that owns the Vault?
+      const [arrayLengthAfter, arrayIndexZero, arrayIndexOne] =
+        await universalProfile["getData(bytes32[])"]([
+          ERC725YKeys.LSP10["LSP10Vaults[]"].length,
+          ERC725YKeys.LSP10["LSP10Vaults[]"].index +
+            "00000000000000000000000000000000",
+          ERC725YKeys.LSP10["LSP10Vaults[]"].index +
+            "00000000000000000000000000000001",
+        ]);
+      console.log("arrayLengthAfter: ", arrayLengthAfter);
+      console.log("arrayIndexZero: ", arrayIndexZero);
+      console.log("arrayIndexOne: ", arrayIndexOne);
 
-        })
+      // does it emit the UniversalReceiver event on the UP contract that owns the Vault?
+    });
+  });
+});
 
-    })
-})
+describe.only("token transfers", () => {
+  let accounts: SignerWithAddress[];
+  let owner: SignerWithAddress;
+
+  beforeEach(async () => {
+    accounts = await ethers.getSigners();
+    owner = accounts[0];
+  });
+
+  it("bug: register LSP7 tokens when doing a LSP7 token transfer with `amount = 0`", async () => {
+    let [up, km, urd] = await setupProfileWithKeyManagerWithURD(owner);
+
+    const lsp7 = await new LSP7Mintable__factory(owner).deploy(
+      "Token",
+      "TKN",
+      accounts[5].address,
+      false
+    );
+
+    const receivedAssets = await up["getData(bytes32)"](
+      ERC725YKeys.LSP5["LSP5ReceivedAssets[]"].length
+    );
+    const receivedAssetsMap = await up["getData(bytes32)"](
+      ERC725YKeys.LSP5["LSP5ReceivedAssets[]"].index +
+        "00000000000000000000000000000000"
+    );
+    console.log("receivedAssetsMap: ", receivedAssetsMap);
+    console.log("receivedAssetsMap: ", receivedAssetsMap);
+
+    await lsp7
+      .connect(accounts[5])
+      .transfer(accounts[5].address, up.address, 0, false, "0x");
+    console.log("LSP7 token address: ", lsp7.address);
+
+    const receivedAssetsAfter = await up["getData(bytes32)"](
+      ERC725YKeys.LSP5["LSP5ReceivedAssets[]"].length
+    );
+    const receivedAssetsMapAfter = await up["getData(bytes32)"](
+      ERC725YKeys.LSP5["LSP5ReceivedAssets[]"].index +
+        "00000000000000000000000000000000"
+    );
+    console.log("receivedAssetsAfter: ", receivedAssetsAfter);
+    console.log("receivedAssetsMapAfter: ", receivedAssetsMapAfter);
+  });
+});
