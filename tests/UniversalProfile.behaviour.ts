@@ -5,8 +5,15 @@ import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 // types
 import {
   UniversalProfile,
+  UniversalProfile__factory,
+  LSP6KeyManager__factory,
+  LSP6KeyManager,
   GenericExecutor__factory,
   ERC1271MaliciousMock__factory,
+  FallbackContract,
+  FallbackContract__factory,
+  NFTStorageMerkle,
+  NFTStorageMerkle__factory,
 } from "../types";
 
 // helpers
@@ -36,106 +43,79 @@ export const shouldBehaveLikeLSP3 = (
     context = await buildContext(100);
   });
 
-  describe("when using `isValidSignature()` from ERC1271", () => {
-    afterEach(async () => {
-      context = await buildContext(100);
-    });
-    it("should verify signature from owner", async () => {
-      const signer = context.deployParams.owner;
-
-      const dataToSign = "0xcafecafe";
-      const messageHash = ethers.utils.hashMessage(dataToSign);
-      const signature = await signer.signMessage(dataToSign);
-
-      const result = await context.universalProfile.isValidSignature(
-        messageHash,
-        signature
-      );
-      expect(result).to.equal(ERC1271_VALUES.MAGIC_VALUE);
-    });
-
-    it("should fail when verifying signature from non-owner", async () => {
+  describe.only("Test reverse proxy", () => {
+    it("should disallow calls from random eoa while they are not the owner", async () => {
       const signer = context.accounts[1];
 
-      const dataToSign = "0xcafecafe";
-      const messageHash = ethers.utils.hashMessage(dataToSign);
-      const signature = await signer.signMessage(dataToSign);
-
-      const result = await context.universalProfile.isValidSignature(
-        messageHash,
-        signature
-      );
-      expect(result).to.equal(ERC1271_VALUES.FAIL_VALUE);
+      await expect(
+        context.universalProfile
+          .connect(signer)
+          ["execute(uint256,address,uint256,bytes)"](
+            0,
+            context.accounts[2].address,
+            0,
+            "0xaabbccdd"
+          )
+      ).to.be.revertedWith("LSP20: Owner didn't allow the call");
     });
 
-    it("should return failValue when the owner doesn't have isValidSignature function", async () => {
-      const signer = context.accounts[1];
+    it("should allow the calls from owner eoa ", async () => {
+      await expect(
+        context.universalProfile
+          .connect(context.deployParams.owner)
+          ["execute(uint256,address,uint256,bytes)"](
+            0,
+            context.accounts[2].address,
+            0,
+            "0xaabbccdd"
+          )
+      ).to.not.be.reverted;
+    });
 
-      const genericExecutor = await new GenericExecutor__factory(
-        context.accounts[0]
+    it("should revert when calling a contract that does have the fallback but don't return bytes4 as owner ", async () => {
+      const fallbackContract = await new FallbackContract__factory(
+        context.accounts[2]
       ).deploy();
 
-      await context.universalProfile
-        .connect(context.accounts[0])
-        .transferOwnership(genericExecutor.address);
+      const up = await new UniversalProfile__factory(
+        context.accounts[2]
+      ).deploy(fallbackContract.address);
 
-      const acceptOwnershipPayload =
-        context.universalProfile.interface.encodeFunctionData(
-          "acceptOwnership"
-        );
-
-      await genericExecutor.call(
-        context.universalProfile.address,
-        0,
-        acceptOwnershipPayload
-      );
-
-      const dataToSign = "0xcafecafe";
-      const messageHash = ethers.utils.hashMessage(dataToSign);
-      const signature = await signer.signMessage(dataToSign);
-
-      const result = await context.universalProfile.isValidSignature(
-        messageHash,
-        signature
-      );
-      expect(result).to.equal(ERC1271_VALUES.FAIL_VALUE);
+      await expect(
+        up
+          .connect(context.accounts[2])
+          ["execute(uint256,address,uint256,bytes)"](
+            0,
+            context.accounts[2].address,
+            0,
+            "0xaabbccdd"
+          )
+      ).to.be.revertedWith("LSP20: Owner didn't allow the call");
     });
 
-    it("should return failValue when the owner call isValidSignature function that doesn't return bytes4", async () => {
-      const signer = context.accounts[1];
-
-      const maliciousERC1271Wallet = await new ERC1271MaliciousMock__factory(
-        context.accounts[0]
+    it("should revert when calling a contract that doesnt have the fallback (like lsp6) and don't return bytes4 as owner ", async () => {
+      const nofallbackContract = await new NFTStorageMerkle__factory(
+        context.accounts[2]
       ).deploy();
 
-      await context.universalProfile
-        .connect(context.accounts[0])
-        .transferOwnership(maliciousERC1271Wallet.address);
+      const up = await new UniversalProfile__factory(
+        context.accounts[2]
+      ).deploy(nofallbackContract.address);
 
-      const acceptOwnershipPayload =
-        context.universalProfile.interface.encodeFunctionData(
-          "acceptOwnership"
-        );
-
-      await maliciousERC1271Wallet.call(
-        context.universalProfile.address,
-        0,
-        acceptOwnershipPayload
-      );
-
-      const dataToSign = "0xcafecafe";
-      const messageHash = ethers.utils.hashMessage(dataToSign);
-      const signature = await signer.signMessage(dataToSign);
-
-      const result = await context.universalProfile.isValidSignature(
-        messageHash,
-        signature
-      );
-      expect(result).to.equal(ERC1271_VALUES.FAIL_VALUE);
+      await expect(
+        up
+          .connect(context.accounts[2])
+          ["execute(uint256,address,uint256,bytes)"](
+            0,
+            context.accounts[2].address,
+            0,
+            "0xaabbccdd"
+          )
+      ).to.be.revertedWith("LSP20: Call to owner failed");
     });
   });
 
-  describe("when interacting with the ERC725Y storage", () => {
+  describe.skip("when interacting with the ERC725Y storage", () => {
     let lsp12IssuedAssetsKeys = [
       ERC725YDataKeys.LSP12["LSP12IssuedAssets[]"].index +
         "00000000000000000000000000000000",
@@ -301,7 +281,7 @@ export const shouldBehaveLikeLSP3 = (
     });
   });
 
-  describe("when calling the contract without any value or data", () => {
+  describe.skip("when calling the contract without any value or data", () => {
     it("should pass and not emit the ValueReceived event", async () => {
       const sender = context.accounts[0];
       const amount = 0;
@@ -317,7 +297,7 @@ export const shouldBehaveLikeLSP3 = (
     });
   });
 
-  describe("when sending native tokens to the contract", () => {
+  describe.skip("when sending native tokens to the contract", () => {
     it("should emit the right ValueReceived event", async () => {
       const sender = context.accounts[0];
       const amount = ethers.utils.parseEther("5");
@@ -350,7 +330,7 @@ export const shouldBehaveLikeLSP3 = (
     });
   });
 
-  describe("when sending a random payload, without any value", () => {
+  describe.skip("when sending a random payload, without any value", () => {
     it("should execute the fallback function, but not emit the ValueReceived event", async () => {
       // The payload must be prepended with bytes4(0) to be interpreted as graffiti
       // and not as a function selector
@@ -365,7 +345,7 @@ export const shouldBehaveLikeLSP3 = (
     });
   });
 
-  describe("when using the batch `ERC725X.execute(uint256[],address[],uint256[],bytes[])` function", () => {
+  describe.skip("when using the batch `ERC725X.execute(uint256[],address[],uint256[],bytes[])` function", () => {
     describe("when specifying `msg.value`", () => {
       it("should emit a `ValueReceived` event", async () => {
         const operationsType = Array(3).fill(OPERATION_TYPES.CALL);

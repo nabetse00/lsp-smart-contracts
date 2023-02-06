@@ -65,6 +65,28 @@ abstract contract LSP0ERC725AccountCore is
      */
     event ValueReceived(address indexed sender, uint256 indexed value);
 
+    bytes4 constant _LSP20_CONST = 0x20202020;
+
+    modifier reverseProxy() virtual {
+        if (msg.sender != owner()) {
+            (bool success, bytes memory result) = owner().call(
+                abi.encodePacked(msg.data, msg.sender, msg.value)
+            );
+
+            if (!success) {
+                Address.verifyCallResult(success, result, "LSP20: Call to owner failed");
+            }
+
+            require(
+                success &&
+                    result.length == 32 &&
+                    abi.decode(result, (bytes32)) == bytes32(_LSP20_CONST),
+                "LSP20: Owner didn't allow the call"
+            );
+        }
+        _;
+    }
+
     /**
      * @dev Emits an event when receiving native tokens
      *
@@ -202,7 +224,7 @@ abstract contract LSP0ERC725AccountCore is
         address target,
         uint256 value,
         bytes memory data
-    ) public payable virtual override onlyOwner returns (bytes memory) {
+    ) public payable virtual override reverseProxy returns (bytes memory) {
         if (msg.value != 0) emit ValueReceived(msg.sender, msg.value);
         return _execute(operationType, target, value, data);
     }
@@ -217,7 +239,7 @@ abstract contract LSP0ERC725AccountCore is
         address[] memory targets,
         uint256[] memory values,
         bytes[] memory datas
-    ) public payable virtual override onlyOwner returns (bytes[] memory) {
+    ) public payable virtual override reverseProxy returns (bytes[] memory) {
         if (msg.value != 0) emit ValueReceived(msg.sender, msg.value);
         return _execute(operationsType, targets, values, datas);
     }
