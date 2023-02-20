@@ -4,6 +4,7 @@ pragma solidity ^0.8.5;
 // interfaces
 import {IERC1271} from "@openzeppelin/contracts/interfaces/IERC1271.sol";
 import {ILSP6KeyManager} from "./ILSP6KeyManager.sol";
+import {IReverseVerification} from "./IReverseVerification.sol";
 
 // modules
 import {ILSP14Ownable2Step} from "../LSP14Ownable2Step/ILSP14Ownable2Step.sol";
@@ -61,6 +62,7 @@ import {
 abstract contract LSP6KeyManagerCore is
     ERC165,
     ILSP6KeyManager,
+    IReverseVerification,
     LSP6SetDataModule,
     LSP6ExecuteModule,
     LSP6OwnershipModule
@@ -77,6 +79,15 @@ abstract contract LSP6KeyManagerCore is
     bool private _reentrancyStatus;
 
     mapping(address => mapping(uint256 => uint256)) internal _nonceStore;
+
+    function checkPermissions(address controller, bytes calldata callData)
+        external
+        virtual
+        returns (bytes4)
+    {
+        _verifyPermissions(controller, callData);
+        return bytes4(callData);
+    }
 
     function target() public view returns (address) {
         return _target;

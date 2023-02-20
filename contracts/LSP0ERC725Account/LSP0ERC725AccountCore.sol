@@ -4,6 +4,7 @@ pragma solidity ^0.8.4;
 // interfaces
 import {IERC1271} from "@openzeppelin/contracts/interfaces/IERC1271.sol";
 import {ILSP1UniversalReceiver} from "../LSP1UniversalReceiver/ILSP1UniversalReceiver.sol";
+import {IReverseVerification} from "../LSP6KeyManager/IReverseVerification.sol";
 
 // libraries
 import {BytesLib} from "solidity-bytes-utils/contracts/BytesLib.sol";
@@ -202,7 +203,21 @@ abstract contract LSP0ERC725AccountCore is
         address target,
         uint256 value,
         bytes memory data
-    ) public payable virtual override onlyOwner returns (bytes memory) {
+    ) public payable virtual override returns (bytes memory) {
+        address accountOwner = owner();
+
+        if (msg.sender != accountOwner) {
+            // reverse call to owner to check for permissions of msg.sender
+            bytes4 result = IReverseVerification(accountOwner).checkPermissions(
+                msg.sender,
+                msg.data
+            );
+
+            if (result != msg.sig) {
+                revert("Reverse Permission Check Failed");
+            }
+        }
+
         if (msg.value != 0) emit ValueReceived(msg.sender, msg.value);
         return _execute(operationType, target, value, data);
     }
