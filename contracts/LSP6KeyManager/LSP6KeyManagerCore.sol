@@ -4,7 +4,7 @@ pragma solidity ^0.8.5;
 // interfaces
 import {IERC1271} from "@openzeppelin/contracts/interfaces/IERC1271.sol";
 import {ILSP6KeyManager} from "./ILSP6KeyManager.sol";
-import {ILSP20ReverseVerification} from "../LSP20ReverseVerification/ILSP20ReverseVerification.sol";
+import {ILSP20CallVerification} from "../LSP20CallVerification/ILSP20CallVerification.sol";
 
 // modules
 import {ILSP14Ownable2Step} from "../LSP14Ownable2Step/ILSP14Ownable2Step.sol";
@@ -62,7 +62,7 @@ import {
 abstract contract LSP6KeyManagerCore is
     ERC165,
     ILSP6KeyManager,
-    ILSP20ReverseVerification,
+    ILSP20CallVerification,
     LSP6SetDataModule,
     LSP6ExecuteModule,
     LSP6OwnershipModule
@@ -93,9 +93,7 @@ abstract contract LSP6KeyManagerCore is
         _nonReentrantBefore(caller);
         _verifyPermissions(caller, data);
         return
-            bytes4(
-                bytes.concat(bytes3(ILSP20ReverseVerification.lsp20VerifyCall.selector), hex"01")
-            );
+            bytes4(bytes.concat(bytes3(ILSP20CallVerification.lsp20VerifyCall.selector), hex"01"));
     }
 
     function lsp20VerifyCallResult(
@@ -104,7 +102,7 @@ abstract contract LSP6KeyManagerCore is
     ) external returns (bytes4) {
         if (msg.sender != _target) revert("Caller is not the target");
         _nonReentrantAfter();
-        return ILSP20ReverseVerification.lsp20VerifyCallResult.selector;
+        return ILSP20CallVerification.lsp20VerifyCallResult.selector;
     }
 
     /**

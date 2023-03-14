@@ -4,7 +4,7 @@ pragma solidity ^0.8.4;
 // interfaces
 import {IERC1271} from "@openzeppelin/contracts/interfaces/IERC1271.sol";
 import {ILSP1UniversalReceiver} from "../LSP1UniversalReceiver/ILSP1UniversalReceiver.sol";
-import {ILSP20ReverseVerification} from "../LSP20ReverseVerification/ILSP20ReverseVerification.sol";
+import {ILSP20CallVerification} from "../LSP20CallVerification/ILSP20CallVerification.sol";
 
 // libraries
 import {BytesLib} from "solidity-bytes-utils/contracts/BytesLib.sol";
@@ -21,7 +21,7 @@ import {ERC725XCore} from "@erc725/smart-contracts/contracts/ERC725XCore.sol";
 import {OwnableUnset} from "@erc725/smart-contracts/contracts/custom/OwnableUnset.sol";
 import {LSP14Ownable2Step} from "../LSP14Ownable2Step/LSP14Ownable2Step.sol";
 import {LSP17Extendable} from "../LSP17ContractExtension/LSP17Extendable.sol";
-import {LSP20ReverseVerification} from "../LSP20ReverseVerification/LSP20ReverseVerification.sol";
+import {LSP20CallVerification} from "../LSP20CallVerification/LSP20CallVerification.sol";
 
 // constants
 import "@erc725/smart-contracts/contracts/constants.sol";
@@ -57,7 +57,7 @@ abstract contract LSP0ERC725AccountCore is
     ERC725YCore,
     LSP14Ownable2Step,
     LSP17Extendable,
-    LSP20ReverseVerification,
+    LSP20CallVerification,
     IERC1271,
     ILSP1UniversalReceiver
 {
@@ -155,12 +155,12 @@ abstract contract LSP0ERC725AccountCore is
         bytes memory data
     ) public payable virtual override returns (bytes memory) {
         address _owner = owner();
-        bool verifyAfter = _reverseVerificationBefore(_owner);
+        bool verifyAfter = _verifyCall(_owner);
 
         if (msg.value != 0) emit ValueReceived(msg.sender, msg.value);
         bytes memory result = _execute(operationType, target, value, data);
 
-        if (verifyAfter) _reverseVerificationAfter(_owner, result);
+        if (verifyAfter) _verifyCallResult(_owner, result);
 
         return result;
     }
@@ -177,12 +177,12 @@ abstract contract LSP0ERC725AccountCore is
         bytes[] memory datas
     ) public payable virtual override returns (bytes[] memory) {
         address _owner = owner();
-        bool verifyAfter = _reverseVerificationBefore(_owner);
+        bool verifyAfter = _verifyCall(_owner);
 
         if (msg.value != 0) emit ValueReceived(msg.sender, msg.value);
         bytes[] memory results = _execute(operationsType, targets, values, datas);
 
-        if (verifyAfter) _reverseVerificationAfter(_owner, abi.encode(results));
+        if (verifyAfter) _verifyCallResult(_owner, abi.encode(results));
 
         return results;
     }
@@ -197,11 +197,11 @@ abstract contract LSP0ERC725AccountCore is
      */
     function setData(bytes32 dataKey, bytes memory dataValue) public virtual override {
         address _owner = owner();
-        bool verifyAfter = _reverseVerificationBefore(_owner);
+        bool verifyAfter = _verifyCall(_owner);
 
         _setData(dataKey, dataValue);
 
-        if (verifyAfter) _reverseVerificationAfter(_owner, "");
+        if (verifyAfter) _verifyCallResult(_owner, "");
     }
 
     /**
@@ -214,7 +214,7 @@ abstract contract LSP0ERC725AccountCore is
      */
     function setData(bytes32[] memory dataKeys, bytes[] memory dataValues) public virtual override {
         address _owner = owner();
-        bool verifyAfter = _reverseVerificationBefore(_owner);
+        bool verifyAfter = _verifyCall(_owner);
 
         if (dataKeys.length != dataValues.length) {
             revert ERC725Y_DataKeysValuesLengthMismatch(dataKeys.length, dataValues.length);
@@ -224,7 +224,7 @@ abstract contract LSP0ERC725AccountCore is
             _setData(dataKeys[i], dataValues[i]);
         }
 
-        if (verifyAfter) _reverseVerificationAfter(_owner, "");
+        if (verifyAfter) _verifyCallResult(_owner, "");
     }
 
     /**
@@ -288,33 +288,71 @@ abstract contract LSP0ERC725AccountCore is
     }
 
     /**
-     * @dev Sets the pending owner and notifies the pending owner
+     * @inheritdoc LSP14Ownable2Step
      *
-     * @param _newOwner The address nofied and set as `pendingOwner`
+     * @dev same as ILSP14.transferOwnership with the additional requirement:
+     *
+     * Requirements:
+     *  - when notifying the new owner via LSP1, the typeId used MUST be keccak256('LSP0OwnershipTransferStarted')
      */
-    function transferOwnership(address _newOwner)
+    function transferOwnership(address newOwner)
         public
         virtual
         override(LSP14Ownable2Step, OwnableUnset)
     {
         address _owner = owner();
-        bool verifyAfter = _reverseVerificationBefore(_owner);
+        bool verifyAfter = _verifyCall(_owner);
 
-        LSP14Ownable2Step._transferOwnership(_newOwner);
+        LSP14Ownable2Step._transferOwnership(newOwner);
 
-        if (verifyAfter) _reverseVerificationAfter(_owner, "");
+        address currentOwner = owner();
+        emit OwnershipTransferStarted(currentOwner, newOwner);
+
+        newOwner.tryNotifyUniversalReceiver(_TYPEID_LSP0_OwnershipTransferStarted, "");
+
+        require(
+            currentOwner == owner(),
+            "LSP14: newOwner MUST accept ownership in a separate transaction"
+        );
+
+        if (verifyAfter) _verifyCallResult(_owner, "");
     }
 
     /**
-     * @dev Renounce ownership of the contract in a 2-step process
+     * @inheritdoc LSP14Ownable2Step
+     *
+     * @dev same as ILSP14.acceptOwnership with the additional requirement:
+     *
+     * Requirements:
+     * - when notifying the previous owner via LSP1, the typeId used MUST be keccak256('LSP0OwnershipTransferred_SenderNotification')
+     * - when notifying the new owner via LSP1, the typeId used MUST be keccak256('LSP0OwnershipTransferred_RecipientNotification')
+     */
+    function acceptOwnership() public virtual override {
+        address previousOwner = owner();
+
+        _acceptOwnership();
+
+        previousOwner.tryNotifyUniversalReceiver(
+            _TYPEID_LSP0_OwnershipTransferred_SenderNotification,
+            ""
+        );
+
+        msg.sender.tryNotifyUniversalReceiver(
+            _TYPEID_LSP0_OwnershipTransferred_RecipientNotification,
+            ""
+        );
+    }
+
+    /**
+     * @inheritdoc LSP14Ownable2Step
      */
     function renounceOwnership() public virtual override(LSP14Ownable2Step, OwnableUnset) {
         address _owner = owner();
-        bool verifyAfter = _reverseVerificationBefore(_owner);
+        bool verifyAfter = _verifyCall(_owner);
 
         LSP14Ownable2Step._renounceOwnership();
 
-        if (verifyAfter) _reverseVerificationAfter(_owner, "");
+        if (verifyAfter) _verifyCallResult(_owner, "");
     }
 
     /**
@@ -471,56 +509,5 @@ abstract contract LSP0ERC725AccountCore is
             dataKey,
             dataValue.length <= 256 ? dataValue : BytesLib.slice(dataValue, 0, 256)
         );
-    }
-
-    // LSP14
-
-    /**
-     * @dev Calls the universalReceiver function of the sender when ownerhsip transfer starts
-     * if supports LSP1 InterfaceId
-     */
-    function _notifyLSP1SenderOnOwnershipTransferStart(address notifiedContract, bytes memory data)
-        internal
-        virtual
-        override
-    {
-        if (ERC165Checker.supportsERC165InterfaceUnchecked(notifiedContract, _INTERFACEID_LSP1)) {
-            ILSP1UniversalReceiver(notifiedContract).universalReceiver(
-                _TYPEID_LSP0_OwnershipTransferStarted,
-                data
-            );
-        }
-    }
-
-    /**
-     * @dev Calls the universalReceiver function of the sender when ownerhsip transfer is complete
-     * if supports LSP1 InterfaceId
-     */
-    function _notifyLSP1SenderOnOwnershipTransferCompletion(
-        address notifiedContract,
-        bytes memory data
-    ) internal virtual override {
-        if (ERC165Checker.supportsERC165InterfaceUnchecked(notifiedContract, _INTERFACEID_LSP1)) {
-            ILSP1UniversalReceiver(notifiedContract).universalReceiver(
-                _TYPEID_LSP0_OwnershipTransferred_SenderNotification,
-                data
-            );
-        }
-    }
-
-    /**
-     * @dev Calls the universalReceiver function of the recipient when ownerhsip transfer is complete
-     * if supports LSP1 InterfaceId
-     */
-    function _notifyLSP1RecipientOnOwnershipTransferCompletion(
-        address notifiedContract,
-        bytes memory data
-    ) internal virtual override {
-        if (ERC165Checker.supportsERC165InterfaceUnchecked(notifiedContract, _INTERFACEID_LSP1)) {
-            ILSP1UniversalReceiver(notifiedContract).universalReceiver(
-                _TYPEID_LSP0_OwnershipTransferred_RecipientNotification,
-                data
-            );
-        }
     }
 }
