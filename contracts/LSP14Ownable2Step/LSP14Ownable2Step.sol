@@ -6,7 +6,7 @@ import {ILSP14Ownable2Step} from "./ILSP14Ownable2Step.sol";
 import {ILSP1UniversalReceiver} from "../LSP1UniversalReceiver/ILSP1UniversalReceiver.sol";
 
 // modules
-import {OwnableUnset} from "@erc725/smart-contracts/contracts/custom/OwnableUnset.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {ERC165Checker} from "@openzeppelin/contracts/utils/introspection/ERC165Checker.sol";
 
 // libraries
@@ -30,7 +30,7 @@ import {_INTERFACEID_LSP1} from "../LSP1UniversalReceiver/LSP1Constants.sol";
  *      works as a 2 steps process. This can be used as a confirmation mechanism to prevent potential mistakes when
  *      transferring ownership of the contract, where the control of the contract could be lost forever.
  */
-abstract contract LSP14Ownable2Step is ILSP14Ownable2Step, OwnableUnset {
+abstract contract LSP14Ownable2Step is ILSP14Ownable2Step, Ownable {
     using LSP1Utils for address;
 
     /**
@@ -64,13 +64,10 @@ abstract contract LSP14Ownable2Step is ILSP14Ownable2Step, OwnableUnset {
     /**
      * @inheritdoc ILSP14Ownable2Step
      */
-    function transferOwnership(address newOwner)
-        public
-        virtual
-        override(OwnableUnset, ILSP14Ownable2Step)
-        onlyOwner
-    {
-        _transferOwnership(newOwner);
+    function transferOwnership(
+        address newOwner
+    ) public virtual override(Ownable, ILSP14Ownable2Step) onlyOwner {
+        _setPendingOwner(newOwner);
 
         address currentOwner = owner();
         emit OwnershipTransferStarted(currentOwner, newOwner);
@@ -104,12 +101,7 @@ abstract contract LSP14Ownable2Step is ILSP14Ownable2Step, OwnableUnset {
     /**
      * @inheritdoc ILSP14Ownable2Step
      */
-    function renounceOwnership()
-        public
-        virtual
-        override(OwnableUnset, ILSP14Ownable2Step)
-        onlyOwner
-    {
+    function renounceOwnership() public virtual override(Ownable, ILSP14Ownable2Step) onlyOwner {
         _renounceOwnership();
     }
 
@@ -124,7 +116,7 @@ abstract contract LSP14Ownable2Step is ILSP14Ownable2Step, OwnableUnset {
      * Requirements:
      * - `newOwner` cannot be the address of the contract itself.
      */
-    function _transferOwnership(address newOwner) internal virtual {
+    function _setPendingOwner(address newOwner) internal virtual {
         if (newOwner == address(this)) revert CannotTransferOwnershipToSelf();
 
         _pendingOwner = newOwner;
@@ -137,7 +129,7 @@ abstract contract LSP14Ownable2Step is ILSP14Ownable2Step, OwnableUnset {
     function _acceptOwnership() internal virtual {
         require(msg.sender == pendingOwner(), "LSP14: caller is not the pendingOwner");
 
-        _setOwner(msg.sender);
+        _transferOwnership(msg.sender);
         delete _pendingOwner;
     }
 
@@ -163,7 +155,7 @@ abstract contract LSP14Ownable2Step is ILSP14Ownable2Step, OwnableUnset {
             revert NotInRenounceOwnershipInterval(confirmationPeriodStart, confirmationPeriodEnd);
         }
 
-        _setOwner(address(0));
+        _transferOwnership(address(0));
         delete _renounceOwnershipStartedAt;
         delete _pendingOwner;
         emit OwnershipRenounced();

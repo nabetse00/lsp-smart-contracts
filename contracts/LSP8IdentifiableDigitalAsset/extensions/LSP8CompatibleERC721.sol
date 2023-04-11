@@ -16,9 +16,9 @@ import {LSP4Compatibility} from "../../LSP4DigitalAssetMetadata/LSP4Compatibilit
 import {
     LSP8IdentifiableDigitalAsset,
     LSP4DigitalAssetMetadata,
-    ERC725YCore
+    ERC725Y
 } from "../LSP8IdentifiableDigitalAsset.sol";
-import {LSP8IdentifiableDigitalAssetCore} from "../LSP8IdentifiableDigitalAssetCore.sol";
+import {LSP8IdentifiableDigitalAsset} from "../LSP8IdentifiableDigitalAsset.sol";
 
 // errors
 import "../LSP8Errors.sol";
@@ -58,13 +58,9 @@ abstract contract LSP8CompatibleERC721 is
     /**
      * @dev See {IERC165-supportsInterface}.
      */
-    function supportsInterface(bytes4 interfaceId)
-        public
-        view
-        virtual
-        override(IERC165, ERC725YCore, LSP8IdentifiableDigitalAsset)
-        returns (bool)
-    {
+    function supportsInterface(
+        bytes4 interfaceId
+    ) public view virtual override(IERC165, ERC725Y, LSP8IdentifiableDigitalAsset) returns (bool) {
         return
             interfaceId == _INTERFACEID_ERC721 ||
             interfaceId == _INTERFACEID_ERC721METADATA ||
@@ -74,9 +70,7 @@ abstract contract LSP8CompatibleERC721 is
     /*
      * @inheritdoc ILSP8CompatibleERC721
      */
-    function tokenURI(
-        uint256 /* tokenId */
-    ) public view virtual returns (string memory) {
+    function tokenURI(uint256 /* tokenId */) public view virtual returns (string memory) {
         bytes memory data = _getData(_LSP4_METADATA_KEY);
 
         // offset = bytes4(hashSig) + bytes32(contentHash) -> 4 + 32 = 36
@@ -119,12 +113,10 @@ abstract contract LSP8CompatibleERC721 is
     /*
      * @inheritdoc ILSP8CompatibleERC721
      */
-    function isApprovedForAll(address tokenOwner, address operator)
-        public
-        view
-        virtual
-        returns (bool)
-    {
+    function isApprovedForAll(
+        address tokenOwner,
+        address operator
+    ) public view virtual returns (bool) {
         return _operatorApprovals[tokenOwner][operator];
     }
 
@@ -148,11 +140,7 @@ abstract contract LSP8CompatibleERC721 is
      * @dev Compatible with ERC721 transferFrom.
      * Using allowNonLSP1Recipient=true so that EOA and any contract may receive the tokenId.
      */
-    function transferFrom(
-        address from,
-        address to,
-        uint256 tokenId
-    ) public virtual {
+    function transferFrom(address from, address to, uint256 tokenId) public virtual {
         _transfer(from, to, bytes32(tokenId), true, "");
     }
 
@@ -161,11 +149,7 @@ abstract contract LSP8CompatibleERC721 is
      * @dev Compatible with ERC721 safeTransferFrom (without optional data).
      * Using allowNonLSP1Recipient=false so that no EOA and only contracts supporting LSP1 interface may receive the tokenId.
      */
-    function safeTransferFrom(
-        address from,
-        address to,
-        uint256 tokenId
-    ) public virtual {
+    function safeTransferFrom(address from, address to, uint256 tokenId) public virtual {
         _safeTransfer(from, to, tokenId, "");
     }
 
@@ -187,11 +171,10 @@ abstract contract LSP8CompatibleERC721 is
     /**
      * @inheritdoc ILSP8IdentifiableDigitalAsset
      */
-    function authorizeOperator(address operator, bytes32 tokenId)
-        public
-        virtual
-        override(ILSP8IdentifiableDigitalAsset, LSP8IdentifiableDigitalAssetCore)
-    {
+    function authorizeOperator(
+        address operator,
+        bytes32 tokenId
+    ) public virtual override(ILSP8IdentifiableDigitalAsset, LSP8IdentifiableDigitalAsset) {
         super.authorizeOperator(operator, tokenId);
         emit Approval(tokenOwnerOf(tokenId), operator, uint256(tokenId));
     }
@@ -295,11 +278,10 @@ abstract contract LSP8CompatibleERC721 is
         }
     }
 
-    function _setData(bytes32 key, bytes memory value)
-        internal
-        virtual
-        override(LSP4DigitalAssetMetadata, ERC725YCore)
-    {
+    function _setData(
+        bytes32 key,
+        bytes memory value
+    ) internal virtual override(LSP4DigitalAssetMetadata, ERC725Y) {
         super._setData(key, value);
     }
 }

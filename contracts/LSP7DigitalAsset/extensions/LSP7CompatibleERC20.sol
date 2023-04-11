@@ -8,8 +8,7 @@ import {ILSP7DigitalAsset} from "../ILSP7DigitalAsset.sol";
 
 // modules
 import {LSP4Compatibility} from "../../LSP4DigitalAssetMetadata/LSP4Compatibility.sol";
-import {LSP7DigitalAsset, LSP4DigitalAssetMetadata, ERC725YCore} from "../LSP7DigitalAsset.sol";
-import {LSP7DigitalAssetCore} from "../LSP7DigitalAssetCore.sol";
+import {LSP7DigitalAsset, LSP4DigitalAssetMetadata, ERC725Y} from "../LSP7DigitalAsset.sol";
 
 /**
  * @dev LSP7 extension, for compatibility for clients / tools that expect ERC20.
@@ -30,13 +29,9 @@ abstract contract LSP7CompatibleERC20 is ILSP7CompatibleERC20, LSP4Compatibility
     /**
      * @dev See {IERC165-supportsInterface}.
      */
-    function supportsInterface(bytes4 interfaceId)
-        public
-        view
-        virtual
-        override(IERC165, ERC725YCore, LSP7DigitalAsset)
-        returns (bool)
-    {
+    function supportsInterface(
+        bytes4 interfaceId
+    ) public view virtual override(IERC165, ERC725Y, LSP7DigitalAsset) returns (bool) {
         return super.supportsInterface(interfaceId);
     }
 
@@ -60,11 +55,7 @@ abstract contract LSP7CompatibleERC20 is ILSP7CompatibleERC20, LSP4Compatibility
      * @dev Compatible with ERC20 transferFrom.
      * Using allowNonLSP1Recipient=true so that EOA and any contract may receive the tokens.
      */
-    function transferFrom(
-        address from,
-        address to,
-        uint256 amount
-    ) public virtual returns (bool) {
+    function transferFrom(address from, address to, uint256 amount) public virtual returns (bool) {
         transfer(from, to, amount, true, "");
         return true;
     }
@@ -115,20 +106,15 @@ abstract contract LSP7CompatibleERC20 is ILSP7CompatibleERC20, LSP4Compatibility
         emit Transfer(address(0), to, amount);
     }
 
-    function _burn(
-        address from,
-        uint256 amount,
-        bytes memory data
-    ) internal virtual override {
+    function _burn(address from, uint256 amount, bytes memory data) internal virtual override {
         super._burn(from, amount, data);
         emit Transfer(from, address(0), amount);
     }
 
-    function _setData(bytes32 key, bytes memory value)
-        internal
-        virtual
-        override(LSP4DigitalAssetMetadata, ERC725YCore)
-    {
+    function _setData(
+        bytes32 key,
+        bytes memory value
+    ) internal virtual override(LSP4DigitalAssetMetadata, ERC725Y) {
         super._setData(key, value);
     }
 }

@@ -2,8 +2,7 @@
 pragma solidity ^0.8.4;
 
 // modules
-import {LSP0ERC725AccountCore} from "../LSP0ERC725Account/LSP0ERC725AccountCore.sol";
-import {OwnableUnset} from "@erc725/smart-contracts/contracts/custom/OwnableUnset.sol";
+import {LSP0ERC725Account} from "../LSP0ERC725Account/LSP0ERC725Account.sol";
 import {LSP14Ownable2Step} from "../LSP14Ownable2Step/LSP14Ownable2Step.sol";
 
 // constants
@@ -14,22 +13,17 @@ import "../LSP14Ownable2Step/LSP14Constants.sol";
 /**
  * @dev This contract is used only for testing purposes
  */
-contract UPWithInstantAcceptOwnership is LSP0ERC725AccountCore {
+contract UPWithInstantAcceptOwnership is LSP0ERC725Account {
     /**
      * @notice Sets the owner of the contract
      * @param newOwner the owner of the contract
      */
-    constructor(address newOwner) payable {
-        OwnableUnset._setOwner(newOwner);
-    }
+    constructor(address newOwner) payable LSP0ERC725Account(newOwner) {}
 
-    function universalReceiver(bytes32 typeId, bytes calldata receivedData)
-        public
-        payable
-        virtual
-        override
-        returns (bytes memory)
-    {
+    function universalReceiver(
+        bytes32 typeId,
+        bytes calldata receivedData
+    ) public payable virtual override returns (bytes memory) {
         if (
             typeId == _TYPEID_LSP0_OwnershipTransferStarted ||
             typeId == _TYPEID_LSP9_OwnershipTransferStarted ||

@@ -4,7 +4,6 @@ pragma solidity ^0.8.4;
 
 // modules
 import {LSP8IdentifiableDigitalAsset} from "../LSP8IdentifiableDigitalAsset.sol";
-import {LSP8IdentifiableDigitalAssetCore} from "../LSP8IdentifiableDigitalAssetCore.sol";
 
 /**
  * @dev LSP8 extension.
@@ -28,7 +27,7 @@ abstract contract LSP8Enumerable is LSP8IdentifiableDigitalAsset {
         address from,
         address to,
         bytes32 tokenId
-    ) internal virtual override(LSP8IdentifiableDigitalAssetCore) {
+    ) internal virtual override(LSP8IdentifiableDigitalAsset) {
         if (from == address(0)) {
             uint256 index = _existingTokens;
             _indexToken[index] = tokenId;

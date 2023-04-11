@@ -12,7 +12,6 @@ interface ILSP14Ownable2Step {
     event OwnershipTransferStarted(address indexed previousOwner, address indexed newOwner);
 
     /**
-     * @inheritdoc OwnableUnset
      * event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
      */
 
@@ -27,7 +26,6 @@ interface ILSP14Ownable2Step {
     event OwnershipRenounced();
 
     /**
-     * @inheritdoc OwnableUnset
      * function owner() external view returns (address);
      */
 

@@ -127,31 +127,13 @@ const config: HardhatUserConfig = {
       "LSP8Mintable",
       "LSP9Vault",
       "LSP11BasicSocialRecovery",
-      // Proxy version
-      // ------------------
-      "UniversalProfileInit",
-      "LSP0ERC725AccountInit",
-      "LSP4DigitalAssetMetadataInitAbstract",
-      "LSP6KeyManagerInit",
-      "LSP7DigitalAssetInitAbstract",
-      "LSP7CappedSupplyInitAbstract",
-      "LSP7MintableInit",
-      "LSP8IdentifiableDigitalAssetInitAbstract",
-      "LSP8CappedSupplyInitAbstract",
-      "LSP8MintableInit",
-      "LSP9VaultInit",
-      "LSP11BasicSocialRecoveryInit",
       // ERC Compatible tokens
       // ------------------
       "LSP4Compatibility",
       "LSP7CompatibleERC20",
-      "LSP7CompatibleERC20InitAbstract",
       "LSP7CompatibleERC20Mintable",
-      "LSP7CompatibleERC20MintableInit",
       "LSP8CompatibleERC721",
-      "LSP8CompatibleERC721InitAbstract",
       "LSP8CompatibleERC721Mintable",
-      "LSP8CompatibleERC721MintableInit",
       // Legacy L14
       // ------------------
       "UniversalReceiverAddressStore",

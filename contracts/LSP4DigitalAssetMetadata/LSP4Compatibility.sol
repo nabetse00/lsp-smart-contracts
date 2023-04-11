@@ -5,7 +5,7 @@ pragma solidity ^0.8.4;
 import {ILSP4Compatibility} from "./ILSP4Compatibility.sol";
 
 // modules
-import {ERC725YCore} from "@erc725/smart-contracts/contracts/ERC725YCore.sol";
+import {ERC725Y} from "@erc725/smart-contracts/contracts/ERC725Y.sol";
 
 // constants
 import "./LSP4Constants.sol";
@@ -15,7 +15,7 @@ import "./LSP4Constants.sol";
  * @author Matthew Stevens
  * @dev LSP4 extension, for compatibility with clients & tools that expect ERC20/721.
  */
-abstract contract LSP4Compatibility is ILSP4Compatibility, ERC725YCore {
+abstract contract LSP4Compatibility is ILSP4Compatibility, ERC725Y {
     // --- Token queries
 
     /**

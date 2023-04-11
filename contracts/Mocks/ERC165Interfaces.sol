@@ -4,7 +4,7 @@ pragma solidity ^0.8.4;
 // ERC interfaces
 import {IERC725X} from "@erc725/smart-contracts/contracts/interfaces/IERC725X.sol";
 import {IERC725Y} from "@erc725/smart-contracts/contracts/interfaces/IERC725Y.sol";
-import {OwnableUnset} from "@erc725/smart-contracts/contracts/custom/OwnableUnset.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
@@ -135,7 +135,7 @@ contract CalculateLSPInterfaces {
     function calculateInterfaceLSP14() public pure returns (bytes4) {
         // prettier-ignore
         bytes4 interfaceId =
-            OwnableUnset.owner.selector ^
+            Ownable.owner.selector ^
             type(ILSP14Ownable2Step).interfaceId;
 
         require(
@@ -219,11 +219,10 @@ contract CalculateERCInterfaces {
  * @dev Used for testing
  */
 contract CheckInterface {
-    function supportsERC165InterfaceUnchecked(address _address, bytes4 interfaceId)
-        public
-        view
-        returns (bool)
-    {
+    function supportsERC165InterfaceUnchecked(
+        address _address,
+        bytes4 interfaceId
+    ) public view returns (bool) {
         return ERC165Checker.supportsERC165InterfaceUnchecked(_address, interfaceId);
     }
 }
